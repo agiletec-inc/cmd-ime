@@ -46,8 +46,8 @@ Customize key mappings in Preferences (⌘ icon in menu bar → Preferences).
 
 ### Build Steps
 ```bash
-git clone https://github.com/kazuki/cmd-ime.git
-cd cmd-ime/cmd-ime-rust
+git clone https://github.com/agiletec-inc/cmd-ime.git
+cd cmd-ime/apps/cmd-ime-rust
 
 # Install dependencies
 pnpm install
@@ -59,7 +59,7 @@ pnpm tauri dev
 pnpm tauri build
 
 # The .app will be in:
-# cmd-ime-rust/src-tauri/target/release/bundle/macos/
+# apps/cmd-ime-rust/src-tauri/target/release/bundle/macos/
 ```
 
 ## Development

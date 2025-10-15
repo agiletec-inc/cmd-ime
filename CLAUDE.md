@@ -16,24 +16,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Based on**: Original [cmd-eikana](https://github.com/imasanari/cmd-eikana) project
 
-### Two Implementations
+### Repository Structure
 
-This repository contains two separate implementations:
+This is a monorepo containing multiple applications:
 
-1. **Rust/Tauri (Active Development)** - `cmd-ime-rust/` directory
-   - Current version: 3.2.0
-   - **Primary development target**
-   - Modern stack: Rust + Tauri framework
-   - Build: `cd cmd-ime-rust && pnpm tauri build`
-   - See Rust/Tauri section below for development workflow
+```
+cmd-ime/
+├── apps/
+│   ├── cmd-ime-rust/    # Rust/Tauri desktop app (PRIMARY)
+│   └── landing/         # Next.js landing page with webui
+├── libs/                # Shared libraries (empty for now)
+└── docs/                # Documentation (VISION.md, ROADMAP.md, etc.)
+```
 
-2. **Swift/Cocoa (Legacy)** - `cmd-ime/` directory
-   - Legacy version: 3.1.0
-   - Older implementation, being phased out
-   - Xcode project: `CmdIME.xcodeproj`
-   - Maintained for reference and migration purposes
+**Primary Development Target**: `apps/cmd-ime-rust/` - Rust/Tauri implementation (v3.2.0)
+**Landing Page**: `apps/landing/` - Next.js marketing site with embedded webui (for comparison, will be deprecated when desktop app is complete)
 
-**Default Development**: Use Rust/Tauri implementation. Swift/Cocoa is legacy code.
+**Default Development**: All new work should focus on `apps/cmd-ime-rust/`.
 
 ## Build Commands
 
@@ -41,7 +40,7 @@ This repository contains two separate implementations:
 
 ```bash
 # Navigate to Rust project
-cd cmd-ime-rust
+cd apps/cmd-ime-rust
 
 # Install dependencies (first time only)
 pnpm install
@@ -53,7 +52,7 @@ pnpm tauri dev
 pnpm tauri build
 
 # Build will create .app in:
-# cmd-ime-rust/src-tauri/target/release/bundle/macos/
+# apps/cmd-ime-rust/src-tauri/target/release/bundle/macos/
 ```
 
 ### Swift/Cocoa (Legacy - Reference Only)
@@ -116,7 +115,7 @@ xcrun xccov view --report TestResults.xcresult
 - **Frontend**: Tauri v2.8.4 with HTML/CSS/JavaScript
 - **Build**: Cargo + pnpm
 
-**Core Components** (`cmd-ime-rust/src-tauri/src/`):
+**Core Components** (`apps/cmd-ime-rust/src-tauri/src/`):
 - `event_tap.rs` - CGEvent tap implementation for key interception
 - `ime.rs` - IME switching logic (alphanumeric ↔ kana)
 - `settings.rs` - Application settings management
@@ -130,10 +129,11 @@ xcrun xccov view --report TestResults.xcresult
 - Settings stored in Tauri's built-in storage
 
 **Development Workflow**:
-1. Modify Rust backend: `src-tauri/src/`
-2. Modify frontend UI: `src/`
-3. Run `pnpm tauri dev` for hot reload
-4. Build with `pnpm tauri build` for release
+1. Navigate to app: `cd apps/cmd-ime-rust`
+2. Modify Rust backend: `src-tauri/src/`
+3. Modify frontend UI: `src/`
+4. Run `pnpm tauri dev` for hot reload
+5. Build with `pnpm tauri build` for release
 
 ---
 
@@ -237,15 +237,15 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 cargo install tauri-cli
 
 # Or use pnpm scripts (recommended)
-cd cmd-ime-rust
+cd apps/cmd-ime-rust
 pnpm install
 pnpm tauri dev
 ```
 
 **Key Files**:
-- `cmd-ime-rust/src-tauri/Cargo.toml` - Rust dependencies
-- `cmd-ime-rust/src-tauri/tauri.conf.json` - Tauri configuration
-- `cmd-ime-rust/package.json` - Frontend dependencies and scripts
+- `apps/cmd-ime-rust/src-tauri/Cargo.toml` - Rust dependencies
+- `apps/cmd-ime-rust/src-tauri/tauri.conf.json` - Tauri configuration
+- `apps/cmd-ime-rust/package.json` - Frontend dependencies and scripts
 
 ---
 
@@ -339,21 +339,24 @@ setLaunchAtStartup(true)  // Enable by default on first launch
 6. Test with `pnpm tauri dev`
 
 #### Modifying UI Settings
-1. Edit HTML/CSS/JS in `cmd-ime-rust/src/`
+1. Edit HTML/CSS/JS in `apps/cmd-ime-rust/src/`
 2. Update Tauri commands in `src-tauri/src/lib.rs`
 3. Hot reload with `pnpm tauri dev` to see changes
 4. Build production version with `pnpm tauri build`
 
 #### Debugging Rust Backend
 ```bash
+# Navigate to app
+cd apps/cmd-ime-rust
+
 # Run with debug logs
 RUST_LOG=debug pnpm tauri dev
 
 # Build debug version
-cargo build --manifest-path=cmd-ime-rust/src-tauri/Cargo.toml
+cargo build --manifest-path=src-tauri/Cargo.toml
 
 # Run tests
-cargo test --manifest-path=cmd-ime-rust/src-tauri/Cargo.toml
+cargo test --manifest-path=src-tauri/Cargo.toml
 ```
 
 ---
@@ -413,18 +416,24 @@ cargo test --manifest-path=cmd-ime-rust/src-tauri/Cargo.toml
 ## File Organization
 
 ### Rust/Tauri Implementation (Active Development)
-**Directory**: `cmd-ime-rust/` - Complete Tauri project
-**Source**: `cmd-ime-rust/src-tauri/src/` - Rust source files
+**Directory**: `apps/cmd-ime-rust/` - Complete Tauri project
+**Source**: `apps/cmd-ime-rust/src-tauri/src/` - Rust source files
   - `event_tap.rs` - CGEvent tap handling (core functionality)
   - `ime.rs` - IME switching logic
   - `settings.rs` - Settings management
   - `lib.rs` - Tauri commands and app initialization
   - `main.rs` - Application entry point
-**Frontend**: `cmd-ime-rust/src/` - HTML/CSS/JS for Tauri UI
-**Config**: `cmd-ime-rust/src-tauri/tauri.conf.json` - Tauri app configuration
+**Frontend**: `apps/cmd-ime-rust/src/` - HTML/CSS/JS for Tauri UI
+**Config**: `apps/cmd-ime-rust/src-tauri/tauri.conf.json` - Tauri app configuration
 **Dependencies**:
-  - `cmd-ime-rust/src-tauri/Cargo.toml` - Rust dependencies
-  - `cmd-ime-rust/package.json` - Frontend dependencies and Tauri build scripts
+  - `apps/cmd-ime-rust/src-tauri/Cargo.toml` - Rust dependencies
+  - `apps/cmd-ime-rust/package.json` - Frontend dependencies and Tauri build scripts
+
+### Landing Page (Next.js)
+**Directory**: `apps/landing/` - Marketing site with embedded webui
+**Purpose**: Comparison and demonstration (will be deprecated when desktop app is complete)
+**Tech Stack**: Next.js, TypeScript, Tailwind CSS
+**Status**: Preserved for reference, not actively maintained
 
 ---
 
@@ -458,14 +467,14 @@ cargo test --manifest-path=cmd-ime-rust/src-tauri/Cargo.toml
 
 ### General
 **License**: MIT
-**Repository**: Single-app development repository (not a monorepo)
+**Repository**: Monorepo with apps/ and libs/ structure
 
 ## Reference Documentation
 
 ### Rust/Tauri Resources
 - **Tauri Documentation**: [tauri.app](https://tauri.app)
 - **Rust macOS APIs**: Core Graphics, Core Foundation bindings
-- **Project README**: `cmd-ime-rust/README.md` (Tauri-specific setup)
+- **Project README**: `apps/cmd-ime-rust/README.md` (Tauri-specific setup)
 
 ### Legacy Swift/Cocoa Resources
 - **Quality Report**: `QUALITY_REPORT.md` - Test coverage status (Swift implementation)
@@ -473,5 +482,5 @@ cargo test --manifest-path=cmd-ime-rust/src-tauri/Cargo.toml
 - **Original Project**: [cmd-eikana](https://github.com/imasanari/cmd-eikana) - Historical context
 
 ### General
-- **Repository Type**: Single-app development (not a monorepo)
-- **Architecture**: This is a standalone macOS app, unlike other projects in `~/github/` workspace that use Docker/Traefik
+- **Repository Type**: Monorepo with multiple apps (apps/cmd-ime-rust, apps/landing)
+- **Architecture**: Standalone macOS app development (no Docker/Traefik like other workspace projects)

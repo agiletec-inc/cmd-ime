@@ -63,10 +63,10 @@
 
 ## 📦 Module Structure
 
-### Rust Backend (`src-tauri/src/`)
+### Rust Backend (`apps/cmd-ime-rust/src-tauri/src/`)
 
 ```
-src-tauri/src/
+apps/cmd-ime-rust/src-tauri/src/
 ├── main.rs              # Application entry point
 ├── lib.rs               # Tauri command handlers
 ├── event_tap.rs         # CGEvent tap implementation
@@ -357,7 +357,7 @@ pub fn test_ime_switch() -> Result<String, String> {
 ### UI Components
 
 ```
-src/
+apps/cmd-ime-rust/src/
 ├── index.html          # Main window
 ├── main.js             # Application logic
 ├── styles.css          # Styling
