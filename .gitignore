@@ -1,0 +1,61 @@
+# macOS
+*.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Rust
+target/
+**/*.rs.bk
+*.pdb
+
+# Tauri
+/cmd-ime-rust/src-tauri/target/
+/cmd-ime-rust/src-tauri/WixTools
+/cmd-ime-rust/src-tauri/gen/
+
+# Node.js / pnpm
+node_modules/
+dist/
+.pnpm-debug.log*
+.npm
+.eslintcache
+*.tsbuildinfo
+
+# Build outputs
+*.app
+*.dmg
+*.pkg
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment
+.env
+.env.local
+.env.*.local
