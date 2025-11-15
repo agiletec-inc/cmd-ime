@@ -5,9 +5,12 @@
   "scripts": {
     "tauri": "tauri",
     "dev": "tauri dev",
-    "build": "tauri build"
+    "build": "tauri build",
+    "test": "vitest run"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.8.4"
+    "@tauri-apps/cli": "^2.8.4",
+    "jsdom": "^27.2.0",
+    "vitest": "catalog:"
   }
 }

@@ -1,18 +1,28 @@
-const { invoke } = window.__TAURI__.core;
-
 let greetInputEl;
 let greetMsgEl;
 
-async function greet() {
-  // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-  greetMsgEl.textContent = await invoke("greet", { name: greetInputEl.value });
+function tauriInvoke() {
+  if (!window.__TAURI__?.core?.invoke) {
+    throw new Error("Tauri runtime is unavailable");
+  }
+  return window.__TAURI__.core.invoke;
 }
 
-window.addEventListener("DOMContentLoaded", () => {
-  greetInputEl = document.querySelector("#greet-input");
-  greetMsgEl = document.querySelector("#greet-msg");
-  document.querySelector("#greet-form").addEventListener("submit", (e) => {
+export async function greet() {
+  greetMsgEl.textContent = await tauriInvoke()("greet", {
+    name: greetInputEl.value,
+  });
+}
+
+export function setupGreetForm(doc = document) {
+  greetInputEl = doc.querySelector("#greet-input");
+  greetMsgEl = doc.querySelector("#greet-msg");
+  doc.querySelector("#greet-form").addEventListener("submit", (e) => {
     e.preventDefault();
     greet();
   });
+}
+
+window.addEventListener("DOMContentLoaded", () => {
+  setupGreetForm();
 });

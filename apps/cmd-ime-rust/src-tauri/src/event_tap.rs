@@ -1,15 +1,26 @@
 //! CGEventTap implementation for keyboard monitoring
 //! Port of KeyEvent.swift logic to Rust
 
-use core_graphics::event::{
-    CGEvent, CGEventTap, CGEventTapLocation, CGEventTapOptions, CGEventTapPlacement,
-    CGEventType, EventField,
+use core_foundation::{
+    base::TCFType,
+    boolean::CFBoolean,
+    dictionary::{CFDictionary, CFDictionaryRef},
+    string::{CFString, CFStringRef},
 };
-use std::sync::{Arc, Mutex};
+use core_graphics::event::{
+    CGEvent, CGEventTap, CGEventTapLocation, CGEventTapOptions, CGEventTapPlacement, CGEventType,
+    EventField,
+};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc, Mutex,
+};
 
 // Key codes for left and right Command keys
 const KEY_CODE_COMMAND_L: i64 = 0x37; // 左Command
 const KEY_CODE_COMMAND_R: i64 = 0x36; // 右Command
+
+static ACCESSIBILITY_PROMPTED: AtomicBool = AtomicBool::new(false);
 
 // Thread-safe wrapper for CGEventTap
 struct EventTapWrapper<'a>(Option<CGEventTap<'a>>);
@@ -42,7 +53,8 @@ impl<'a> EventTapManager<'a> {
                 },
                 KeyMapping {
                     input_key: KEY_CODE_COMMAND_R,
-                    output_source: "com.apple.inputmethod.Kotoeri.RomajiTyping.Japanese".to_string(),
+                    output_source: "com.apple.inputmethod.Kotoeri.RomajiTyping.Japanese"
+                        .to_string(),
                     enabled: true,
                 },
             ])),
@@ -67,12 +79,7 @@ impl<'a> EventTapManager<'a> {
             CGEventTapOptions::Default,
             vec![CGEventType::KeyDown, CGEventType::FlagsChanged],
             move |_proxy, event_type, event| {
-                Self::event_callback(
-                    event_type,
-                    event,
-                    &mappings,
-                    &excluded_apps,
-                )
+                Self::event_callback(event_type, event, &mappings, &excluded_apps)
             },
         )
         .map_err(|e| format!("Failed to create event tap: {:?}", e))?;
@@ -130,13 +137,29 @@ impl<'a> EventTapManager<'a> {
 
     /// Check accessibility permission
     fn check_accessibility_permission() -> bool {
-        // TODO: Implement IOHIDRequestAccess check
-        // For now, assume permission is granted
-        true
+        unsafe {
+            if AXIsProcessTrusted() {
+                return true;
+            }
+
+            if !ACCESSIBILITY_PROMPTED.swap(true, Ordering::SeqCst) {
+                // Ask macOS to open the Accessibility pane once
+                let prompt_key =
+                    CFString::wrap_under_get_rule(kAXTrustedCheckOptionPrompt as CFStringRef);
+                let prompt_value = CFBoolean::true_value();
+                let options = CFDictionary::from_CFType_pairs(&[(
+                    prompt_key.as_CFType(),
+                    prompt_value.as_CFType(),
+                )]);
+                let _ = AXIsProcessTrustedWithOptions(options.as_concrete_TypeRef());
+            }
+
+            AXIsProcessTrusted()
+        }
     }
 
     /// Check if current app is in exclusion list
-    fn is_current_app_excluded(excluded_apps: &Arc<Mutex<Vec<String>>>) -> bool {
+    fn is_current_app_excluded(_excluded_apps: &Arc<Mutex<Vec<String>>>) -> bool {
         // TODO: Get current frontmost app bundle ID and check against exclusion list
         // This requires NSWorkspace integration
         false
@@ -159,4 +182,11 @@ impl<'a> Drop for EventTapManager<'a> {
     fn drop(&mut self) {
         self.stop();
     }
+}
+
+#[link(name = "ApplicationServices", kind = "framework")]
+extern "C" {
+    fn AXIsProcessTrusted() -> bool;
+    fn AXIsProcessTrustedWithOptions(options: CFDictionaryRef) -> bool;
+    static kAXTrustedCheckOptionPrompt: CFStringRef;
 }

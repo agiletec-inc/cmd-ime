@@ -8,17 +8,11 @@ use std::ffi::c_void;
 // Carbon Text Input Sources C API bindings
 #[link(name = "Carbon", kind = "framework")]
 extern "C" {
-    fn TISCreateInputSourceList(
-        properties: CFTypeRef,
-        include_all: bool,
-    ) -> CFTypeRef; // CFArrayRef
+    fn TISCreateInputSourceList(properties: CFTypeRef, include_all: bool) -> CFTypeRef; // CFArrayRef
 
     fn TISSelectInputSource(source: CFTypeRef);
 
-    fn TISGetInputSourceProperty(
-        source: CFTypeRef,
-        property_key: CFStringRef,
-    ) -> *const c_void;
+    fn TISGetInputSourceProperty(source: CFTypeRef, property_key: CFStringRef) -> *const c_void;
 
     static kTISPropertyInputSourceID: CFStringRef;
 }
@@ -29,10 +23,7 @@ type CFTypeRef = *const c_void;
 pub fn switch_input_source(source_id: &str) -> Result<(), String> {
     unsafe {
         // Create input source list
-        let source_list = TISCreateInputSourceList(
-            std::ptr::null(),
-            true,
-        );
+        let source_list = TISCreateInputSourceList(std::ptr::null(), true);
 
         if source_list.is_null() {
             return Err("Failed to get input source list".to_string());
@@ -42,7 +33,7 @@ pub fn switch_input_source(source_id: &str) -> Result<(), String> {
         let target_id = CFString::new(source_id);
 
         // Search for matching input source
-        let array = CFType::wrap_under_get_rule(source_list);
+        let _array = CFType::wrap_under_get_rule(source_list);
 
         // Cast to CFArray and iterate
         let array_ptr = source_list as *const __CFArray;
@@ -51,15 +42,12 @@ pub fn switch_input_source(source_id: &str) -> Result<(), String> {
         for i in 0..count {
             let source = CFArrayGetValueAtIndex(array_ptr, i);
 
-            let source_id_ref = TISGetInputSourceProperty(
-                source,
-                kTISPropertyInputSourceID,
-            );
+            let source_id_ref = TISGetInputSourceProperty(source, kTISPropertyInputSourceID);
 
             if !source_id_ref.is_null() {
                 let current_id = CFString::wrap_under_get_rule(source_id_ref as CFStringRef);
 
-                if current_id.to_string() == target_id.to_string() {
+                if current_id == target_id {
                     TISSelectInputSource(source);
                     return Ok(());
                 }
@@ -71,6 +59,7 @@ pub fn switch_input_source(source_id: &str) -> Result<(), String> {
 }
 
 /// Get current input source ID
+#[allow(dead_code)]
 pub fn get_current_input_source() -> Option<String> {
     unsafe {
         let current_source = TISCopyCurrentKeyboardInputSource();
@@ -79,10 +68,7 @@ pub fn get_current_input_source() -> Option<String> {
             return None;
         }
 
-        let source_id_ref = TISGetInputSourceProperty(
-            current_source,
-            kTISPropertyInputSourceID,
-        );
+        let source_id_ref = TISGetInputSourceProperty(current_source, kTISPropertyInputSourceID);
 
         if source_id_ref.is_null() {
             return None;
@@ -93,6 +79,7 @@ pub fn get_current_input_source() -> Option<String> {
     }
 }
 
+#[allow(dead_code)]
 extern "C" {
     fn TISCopyCurrentKeyboardInputSource() -> CFTypeRef;
     fn CFArrayGetCount(array: *const __CFArray) -> isize;

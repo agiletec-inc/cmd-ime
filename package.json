@@ -1,0 +1,23 @@
+{
+  "name": "cmd-ime",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@10.12.0",
+  "pnpm": {
+    "catalog": {
+      "next": "15.4.0",
+      "react": "19.0.0",
+      "typescript": "5.8.0",
+      "vitest": "2.0.0"
+    }
+  },
+  "devDependencies": {
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "_generated": {
+    "by": "airis-workspace",
+    "from": "workspace.yaml",
+    "warning": "⚠️  DO NOT EDIT - Regenerate with 'airis generate'"
+  }
+}

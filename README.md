@@ -32,6 +32,12 @@ brew install --cask cmd-ime
 
 Customize key mappings in Preferences (⌘ icon in menu bar → Preferences).
 
+### Login Item
+- Toggle "ログイン時に開く" from the menu bar or preferences to add/remove a LaunchAgent (`~/Library/LaunchAgents/com.kazuki.cmdime.launcher.plist`) so the app starts at login.
+
+### Updates
+- Toggle "起動時にアップデートを確認" to query GitHub Releases on launch, or press "確認する" in Preferences → 設定 to manually check and open the latest release page.
+
 ## System Requirements
 
 - macOS 14.0 (Sonoma) or later
@@ -41,30 +47,50 @@ Customize key mappings in Preferences (⌘ icon in menu bar → Preferences).
 
 ### Prerequisites
 - Rust toolchain
-- Node.js and pnpm
+- Swift 5.10+ (Xcode 15 or newer)
 - Xcode Command Line Tools
 
 ### Build Steps
 ```bash
 git clone https://github.com/agiletec-inc/cmd-ime.git
-cd cmd-ime/apps/cmd-ime-rust
+cd cmd-ime
 
-# Install dependencies
-pnpm install
+# 1. Build the Rust backend (generates libcmd_ime_rust_lib.a)
+cargo build --release --manifest-path apps/cmd-ime-rust/src-tauri/Cargo.toml
 
-# Development mode with hot reload
-pnpm tauri dev
+# 2. Build the Swift menu bar app (and bundle it)
+cd apps/cmd-ime-swift
+swift build -c release
+./scripts/package.sh
 
-# Build release version
-pnpm tauri build
-
-# The .app will be in:
-# apps/cmd-ime-rust/src-tauri/target/release/bundle/macos/
+# The .app bundle will be generated at:
+# apps/cmd-ime-swift/.build/release/CmdIME.app
 ```
 
 ## Development
 
 See [CLAUDE.md](CLAUDE.md) for detailed development documentation.
+
+## Testing
+
+Run the automated test suites before shipping any change:
+
+```bash
+# 1. Rust backend (unit tests + clippy lint pass)
+cargo test --manifest-path apps/cmd-ime-rust/src-tauri/Cargo.toml
+cargo clippy --manifest-path apps/cmd-ime-rust/src-tauri/Cargo.toml
+
+# 2. Swift menu bar app + CmdIME runtime bridge
+cd apps/cmd-ime-swift
+swift test
+
+# 3. Tauri frontend smoke tests (requires pnpm install in apps/cmd-ime-rust)
+cd ../cmd-ime-rust
+pnpm install
+pnpm test
+```
+
+Rust settings tests respect the `CMD_IME_CONFIG_DIR` environment variable so they never touch your real `~/.config/cmd-ime` files.
 
 ## Uninstall
 

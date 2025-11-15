@@ -1,6 +1,15 @@
-// Prevents additional console window on Windows in release, DO NOT REMOVE!!
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-
 fn main() {
-    cmd_ime_rust_lib::run()
+    if !cmd_ime_rust_lib::cmd_ime_initialize() {
+        eprintln!("Failed to initialize cmd-ime backend");
+        return;
+    }
+
+    if !cmd_ime_rust_lib::cmd_ime_start_monitoring() {
+        eprintln!("Failed to start event tap");
+    }
+
+    // Run indefinitely when invoked directly.
+    loop {
+        std::thread::park();
+    }
 }
