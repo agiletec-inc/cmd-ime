@@ -1,6 +1,23 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+**IMPORTANT: This project uses `manifest.toml` as the single source of truth.**
+
+All project rules, policies, workflows, versioning requirements, and agent execution guidelines are defined in:
+
+📋 **`manifest.toml`**
+
+Please read `manifest.toml` for:
+- Version management policies (REQUIRED: bump version on source changes)
+- Implementation workflows (REQUIRED: check official docs before implementing)
+- Command policies (forbidden commands and required wrappers)
+- Critical implementation notes
+- Agent execution rules
+
+---
+
+## Quick Reference
+
+This file provides supplementary guidance for Claude Code (claude.ai/code).
 
 ## Project Overview
 

@@ -1,3 +1,21 @@
+# AGENTS.md
+
+**IMPORTANT: This project uses `manifest.toml` as the single source of truth.**
+
+All project rules, policies, workflows, versioning requirements, and agent execution guidelines are defined in:
+
+📋 **`manifest.toml`**
+
+Please read `manifest.toml` for:
+- Version management policies (REQUIRED: bump version on source changes)
+- Implementation workflows (REQUIRED: check official docs before implementing)
+- Command policies (forbidden commands and required wrappers)
+- Critical implementation notes
+- Agent execution rules
+
+---
+
+## Execution rules
 
 0. デフォルトモードは「アドバイザー」ではなく **「オペレーター」**。
    説明より先に **手を動かす（編集・実行・テスト・調査）** ことを優先する。
@@ -31,3 +49,20 @@
 
 7. 返答は常に **短く・実務的に**。
    長文の言い訳・ポエムは禁止。**差分・ログ・次に叩くコマンド**だけを返す。
+
+8. 「実行した」と報告するときは、**必ず証拠**（コマンド出力・git diff・ls結果など）を同時に提示すること。証拠が無い報告は無効。
+
+9. 「続けて」「Go on」などの指示を受けたら、質問せず直前タスクの次ステップを自動で実行し、結果と証拠を返すこと。
+
+10. 「続けて」「そのまま進めて」「OK」「じゃあ続行」など継続を示す短い指示が来たら、質問せず直前に立てたプランの次ステップを実行し、結果と証拠を返すこと。プラン未作成なら自分で妥当と思う次の1手を実行する。危険操作（大規模削除等）のみ一度だけ確認可。
+
+11. workspace 管理:
+    - dev 対象アプリ・依存関係・起動順序などは **workspace.yaml が唯一の Source of Truth**。
+    - justfile / docker-compose にはロジックを埋め込まず、workspace.yaml を参照して動作させる。
+    - Node/JS スクリプト等で dev ロジックを組むのは禁止。workspace.yaml → justfile という経路で統一する。
+    - workspace.yaml の変更 = dev ワークフローの変更。必ずここを更新し、それを参照する形で実装する。
+
+## Repo-specific notes
+- `workspace.yaml` から生成される `justfile` / `package.json` / `pnpm-workspace.yaml` は **自動生成ファイル**。手動編集は禁止し、必ず再生成で更新する。
+- Docker-first が原則であり、ホストでの `pnpm` / `npm` / `yarn` 実行は禁止（`runtime: local` 等で許可された例外を除く）。
+- 削除済みスタック（例: Tauri/Rust backend など）がある場合、明示指示なしに再導入しない。

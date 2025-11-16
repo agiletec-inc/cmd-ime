@@ -2,22 +2,19 @@
   "name": "cmd-ime",
   "version": "0.0.0",
   "private": true,
-  "packageManager": "pnpm@10.12.0",
-  "pnpm": {
-    "catalog": {
-      "next": "15.4.0",
-      "react": "19.0.0",
-      "typescript": "5.8.0",
-      "vitest": "2.0.0"
-    }
+  "type": "module",
+  "packageManager": "pnpm@10.22.0",
+  "dependencies": {
   },
   "devDependencies": {
-    "typescript": "catalog:",
-    "vitest": "catalog:"
+    "eslint": "9.3.0",
+    "typescript": "5.6.2"
+  },
+  "scripts": {
   },
   "_generated": {
-    "by": "airis-workspace",
-    "from": "workspace.yaml",
-    "warning": "⚠️  DO NOT EDIT - Regenerate with 'airis generate'"
+    "by": "airis init",
+    "from": "manifest.toml",
+    "warning": "⚠️  DO NOT EDIT - Update manifest.toml then rerun `airis init`"
   }
 }

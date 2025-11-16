@@ -2,12 +2,12 @@
 
 A lightweight macOS app that switches between alphanumeric and kana input when tapping left/right Command keys.
 
-Built with Rust + Tauri for modern macOS.
+Built with Swift for modern macOS.
 
 ## Features
 
 - **Simple & Fast**: Minimal resource usage, instant response
-- **Modern Stack**: Rust backend + Tauri frontend
+- **Swift-Only Stack**: Native macOS code (no Tauri/Electron)
 - **M4 Mac Optimized**: Native arm64 build for Apple Silicon
 - **macOS 14+ Support**: Built for modern macOS versions
 - **Customizable**: Remap any key combination via preferences
@@ -46,7 +46,6 @@ Customize key mappings in Preferences (⌘ icon in menu bar → Preferences).
 ## Building from Source
 
 ### Prerequisites
-- Rust toolchain
 - Swift 5.10+ (Xcode 15 or newer)
 - Xcode Command Line Tools
 
@@ -55,16 +54,10 @@ Customize key mappings in Preferences (⌘ icon in menu bar → Preferences).
 git clone https://github.com/agiletec-inc/cmd-ime.git
 cd cmd-ime
 
-# 1. Build the Rust backend (generates libcmd_ime_rust_lib.a)
-cargo build --release --manifest-path apps/cmd-ime-rust/src-tauri/Cargo.toml
-
-# 2. Build the Swift menu bar app (and bundle it)
+# Build the Swift menu bar app (bundle via Xcode or swift build)
 cd apps/cmd-ime-swift
 swift build -c release
-./scripts/package.sh
-
-# The .app bundle will be generated at:
-# apps/cmd-ime-swift/.build/release/CmdIME.app
+open CmdIMESwift.xcodeproj   # if you prefer GUI build
 ```
 
 ## Development
@@ -76,21 +69,13 @@ See [CLAUDE.md](CLAUDE.md) for detailed development documentation.
 Run the automated test suites before shipping any change:
 
 ```bash
-# 1. Rust backend (unit tests + clippy lint pass)
-cargo test --manifest-path apps/cmd-ime-rust/src-tauri/Cargo.toml
-cargo clippy --manifest-path apps/cmd-ime-rust/src-tauri/Cargo.toml
-
-# 2. Swift menu bar app + CmdIME runtime bridge
+# Swift menu bar app + CmdIME runtime tests
 cd apps/cmd-ime-swift
 swift test
 
-# 3. Tauri frontend smoke tests (requires pnpm install in apps/cmd-ime-rust)
-cd ../cmd-ime-rust
-pnpm install
-pnpm test
+# Xcode scheme (UI tests & unit tests)
+xcodebuild -scheme CmdIMESwift -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation test
 ```
-
-Rust settings tests respect the `CMD_IME_CONFIG_DIR` environment variable so they never touch your real `~/.config/cmd-ime` files.
 
 ## Uninstall
 

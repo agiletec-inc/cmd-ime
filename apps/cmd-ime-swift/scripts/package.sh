@@ -11,7 +11,7 @@ APP_DIR="$BUILD_DIR/release/${APP_NAME}.app"
 MACOS_DIR="$APP_DIR/Contents/MacOS"
 RESOURCES_DIR="$APP_DIR/Contents/Resources"
 INFO_PLIST="$APP_DIR/Contents/Info.plist"
-RUST_ICON="$PROJECT_ROOT/../cmd-ime-rust/src-tauri/icons/icon.icns"
+ICON_SOURCE="$PROJECT_ROOT/../../AppIcon.icns"
 
 VERSION="${CMD_IME_VERSION:-$(git -C "$PROJECT_ROOT" describe --tags --always 2>/dev/null || echo "0.0.0")}"
 
@@ -31,8 +31,8 @@ mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
 cp "$BIN_PATH" "$MACOS_DIR/$APP_NAME"
 chmod +x "$MACOS_DIR/$APP_NAME"
 
-if [[ -f "$RUST_ICON" ]]; then
-    cp "$RUST_ICON" "$RESOURCES_DIR/AppIcon.icns"
+if [[ -f "$ICON_SOURCE" ]]; then
+    cp "$ICON_SOURCE" "$RESOURCES_DIR/AppIcon.icns"
     ICON_NAME="AppIcon.icns"
 else
     ICON_NAME=""
