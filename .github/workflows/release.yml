@@ -74,13 +74,17 @@ jobs:
       - name: Build macOS app
         if: steps.check_tag.outputs.exists == 'false'
         run: |
-          xcodebuild -configuration Release clean build \
-            -scheme "⌘IME" \
-            -derivedDataPath build
+          cd apps/cmd-ime-swift
 
-          # Copy .app to release directory
-          mkdir -p release
-          cp -R build/Build/Products/Release/⌘IME.app release/
+          # Set version from workflow
+          export CMD_IME_VERSION=${{steps.version.outputs.version}}
+
+          # Build using existing script
+          bash scripts/package.sh
+
+          # Copy to release directory
+          mkdir -p ../../release
+          cp -R .build/release/CmdIME.app ../../release/
 
       - name: Create DMG
         if: steps.check_tag.outputs.exists == 'false'
@@ -88,8 +92,8 @@ jobs:
           VERSION=${{steps.version.outputs.version}}
 
           # Create DMG using hdiutil
-          hdiutil create -volname "⌘IME" \
-            -srcfolder "release/⌘IME.app" \
+          hdiutil create -volname "CmdIME" \
+            -srcfolder "release/CmdIME.app" \
             -ov -format UDZO \
             "cmd-ime-${VERSION}.dmg"
 
@@ -160,7 +164,7 @@ jobs:
               strategy :github_latest
             end
 
-            app "⌘IME.app"
+            app "CmdIME.app"
 
             zap trash: [
               "~/Library/Preferences/com.kazuki.cmd-ime.plist",
