@@ -1,0 +1,27 @@
+[[snapshot]]
+path = "package.json"
+backup_path = ".airis/backups/package.json.2025-11-20.json"
+format = "json"
+captured_at = "2025-11-20T05:54:17Z"
+hash = "sha256:03fbda4b8b8395b253324f42044ddd76ad48e751c97a750db5da8ccf4187d1ed"
+
+[[snapshot]]
+path = "pnpm-workspace.yaml"
+backup_path = ".airis/backups/pnpm-workspace.yaml.2025-11-20.yaml"
+format = "yaml"
+captured_at = "2025-11-20T05:54:17Z"
+hash = "sha256:50043d2c37d0e2657d29238bced483b4497702b3cfe04f21a5a4740628fbadaf"
+
+[[snapshot]]
+path = "justfile"
+backup_path = ".airis/backups/justfile.2025-11-20.txt"
+format = "txt"
+captured_at = "2025-11-20T05:54:17Z"
+hash = "sha256:5b8680940486b870639e853fe305bd4d9323d47053cae4176a61298a326a4c13"
+
+[[snapshot]]
+path = "docker-compose.yml"
+backup_path = ".airis/backups/docker-compose.yml.2025-11-20.yml"
+format = "yml"
+captured_at = "2025-11-20T05:54:17Z"
+hash = "sha256:9f4e518d8d8362cdefccd8094d8dab94d0c47baac58f45181ee52d0fff08d524"

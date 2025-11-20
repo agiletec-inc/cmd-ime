@@ -1,14 +1,23 @@
 version = 1
-mode = "docker-first"
-project = []
+mode = "hybrid"
+
+# ========================================
+# Project Metadata (Source of Truth)
+# ========================================
+[project]
+id = "cmd-ime"
+binary_name = "cmd-ime"
+version = "1.0.1"
+description = "⌘IME (Command IME) - Lightweight macOS app for switching between alphanumeric and kana input"
+authors = ["Kazuki <kazuki@agiletec.jp>"]
+license = "MIT"
+homepage = "https://github.com/agiletec-inc/cmd-ime"
+repository = "https://github.com/agiletec-inc/cmd-ime"
+keywords = ["macos", "ime", "input-method", "keyboard", "japanese"]
+categories = ["command-line-utilities", "macos"]
 
 [workspace]
 name = "cmd-ime"
-package_manager = "pnpm@10.22.0"
-service = "workspace"
-image = "node:22-alpine"
-workdir = "/app"
-volumes = ["workspace-node-modules:/app/node_modules"]
 
 [catalog]
 
@@ -31,31 +40,24 @@ workdir = ""
 
 [rule.verify]
 commands = [
-    "just lint",
-    "just test-all",
+    "swift build",
+    "swift test",
 ]
 
 [rule.ci]
 commands = [
-    "just lint",
-    "just test-all",
-    "just typecheck",
+    "swift build",
+    "swift test",
 ]
 
 [packages]
 workspaces = []
 
 [packages.catalog]
-next = "15.4.0"
-react = "19.0.0"
-typescript = "5.8.0"
-vitest = "2.0.0"
 
 [packages.root.dependencies]
 
 [packages.root.devDependencies]
-typescript = "5.6.2"
-eslint = "9.3.0"
 
 [packages.root.optionalDependencies]
 
@@ -75,15 +77,6 @@ ignoreMissing = []
 
 [packages.root.pnpm.allowedScripts]
 
-[[packages.app]]
-pattern = "apps/*"
-
-[packages.app.dependencies]
-
-[packages.app.devDependencies]
-
-[packages.app.scripts]
-
 [guards]
 deny = [
     "git commit --no-verify",
@@ -94,144 +87,29 @@ deny = [
 
 [guards.deny_with_message]
 "git commit --no-verify" = "Bypasses version checks - use ./scripts/commit.sh instead"
-"pnpm" = "Direct host execution forbidden - use docker compose exec workspace pnpm"
-"npm" = "Direct host execution forbidden - use docker compose exec workspace npm"
 
 # ========================================
-# Project Metadata
+# Versioning
 # ========================================
-[project.metadata]
-description = "⌘IME (Command IME) - Lightweight macOS app for switching between alphanumeric and kana input"
-license = "MIT"
-minimum_macos = "14.0"
-primary_target = "apps/cmd-ime-swift"
-architecture = "universal"
+[versioning]
+strategy = "conventional-commits"
+source = "1.0.1"
 
 # ========================================
-# Version Management Policy
+# CI/CD Configuration
 # ========================================
-[policies.versioning]
-enforce_on_commit = true
-current_version = "1.0.1"
+[ci]
+enabled = true
+auto_version = true
+repository = "agiletec-inc/cmd-ime"
+homebrew_tap = "agiletec-inc/homebrew-tap"
 
-[policies.versioning."apps/cmd-ime-swift"]
-require_bump_on_paths = [
-  "apps/cmd-ime-swift/Sources/**/*.swift",
-  "apps/cmd-ime-swift/scripts/build_app.sh",
-  "apps/cmd-ime-swift/scripts/package.sh",
-]
-
-version_files = [
-  "apps/cmd-ime-swift/scripts/build_app.sh",
-  "apps/cmd-ime-swift/scripts/package.sh",
-]
-
-version_key = "CFBundleShortVersionString"
-bundle_version_key = "CFBundleVersion"
-bump_script = "./scripts/bump_version.sh"
+[ci.auto_merge]
+enabled = false
 
 # ========================================
-# Implementation Policy
+# Documentation
 # ========================================
-[policies.implementation]
-require_official_docs = true
-require_version_check = true
-require_api_reference = true
-no_speculation = true
-
-[policies.implementation.workflow]
-steps = [
-  "1. Identify library/framework/API being used",
-  "2. Query official documentation via MCP (Serena/WebSearch)",
-  "3. Check latest stable version",
-  "4. Compare with project's current version",
-  "5. Read official API reference",
-  "6. Design implementation based on official docs (NOT speculation)",
-  "7. Implement with proper error handling",
-  "8. Test implementation",
-  "9. Bump version if source code changed",
-  "10. Commit via wrapper script",
-]
-
-[policies.implementation.mcp]
-documentation_providers = ["serena", "webfetch", "websearch"]
-version_registries = ["npm", "cargo", "homebrew"]
-
-# ========================================
-# Workflows
-# ========================================
-[workflows."swift-feature-development"]
-description = "Standard workflow for cmd-ime-swift feature development"
-triggers = ["apps/cmd-ime-swift/Sources/**"]
-
-[[workflows."swift-feature-development".steps]]
-name = "Verify official documentation"
-required = true
-
-[[workflows."swift-feature-development".steps]]
-name = "Check current versions"
-required = true
-
-[[workflows."swift-feature-development".steps]]
-name = "Implement feature"
-required = true
-
-[[workflows."swift-feature-development".steps]]
-name = "Write tests"
-required = true
-
-[[workflows."swift-feature-development".steps]]
-name = "Run tests"
-required = true
-run = "cd apps/cmd-ime-swift && swift test"
-
-[[workflows."swift-feature-development".steps]]
-name = "Bump version"
-required = true
-run = "./scripts/bump_version.sh patch"
-
-[[workflows."swift-feature-development".steps]]
-name = "Build app"
-required = true
-run = "cd apps/cmd-ime-swift && bash scripts/build_app.sh"
-
-[[workflows."swift-feature-development".steps]]
-name = "Commit changes"
-required = true
-run = "./scripts/commit.sh"
-
-# ========================================
-# Critical Implementation Notes
-# ========================================
-[critical_notes.accessibility]
-rule = "Only show permission prompt on FIRST launch"
-
-[critical_notes.login_item]
-rule = "Login item management - DO NOT comment out setLaunchAtStartup() calls"
-bundle_id = "com.kazuki.cmdime-helper"
-macos_13_plus = "Use SMAppService.mainApp (no helper app needed)"
-macos_12_minus = "Use SMLoginItemSetEnabled with helper app"
-
-# ========================================
-# Agent Execution Rules
-# ========================================
-[agent_rules.execution]
-default_mode = "operator"
-priority = "action"
-cli_only = true
-evidence_required = true
-
-[agent_rules.failure_handling]
-never_say_cannot = true
-always_provide_alternative = true
-max_excuse_length = "1 line"
-
-[agent_rules.response_style]
-brevity = "mandatory"
-no_poetry = true
-proof_required = true
-
-[agent_rules.continuation]
-auto_continue = true
-create_plan_if_missing = true
-only_confirm_dangerous = true
+[docs]
+targets = ["CLAUDE.md"]
+mode = "warn"
