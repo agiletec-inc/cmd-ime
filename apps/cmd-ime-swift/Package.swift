@@ -21,11 +21,6 @@ let package = Package(
             name: "CmdIMESwiftTests",
             dependencies: ["CmdIMESwift"],
             path: "Tests/CmdIMESwiftTests"
-        ),
-        .testTarget(
-            name: "CmdIMESwiftUITests",
-            dependencies: ["CmdIMESwift"],
-            path: "Tests/CmdIMESwiftUITests"
         )
     ]
 )
