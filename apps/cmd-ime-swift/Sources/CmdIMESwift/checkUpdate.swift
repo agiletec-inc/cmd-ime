@@ -38,24 +38,24 @@ func checkUpdate(_ callback: ((_ isNewVer: Bool?) -> Void)? = nil) {
             return;
         }
         
-        let isAbleUpdate: Bool? = (newVersion == "") ? nil : newVersion != version
-        
-        if isAbleUpdate == true {
-            let alert = NSAlert()
-            alert.messageText = "⌘英かな ver.\(newVersion) が利用可能です"
-            alert.informativeText = description
-            alert.addButton(withTitle: "Download")
-            alert.addButton(withTitle: "Cancel")
-            // alert.showsSuppressionButton = true;
-            let ret = alert.runModal()
+        DispatchQueue.main.async {
+            let isAbleUpdate: Bool? = (newVersion == "") ? nil : newVersion != version
             
-            if (ret == NSApplication.ModalResponse.alertFirstButtonReturn) {
-                NSWorkspace.shared.open(URL(string: url)!)
+            if isAbleUpdate == true {
+                let alert = NSAlert()
+                alert.messageText = "⌘英かな ver.\(newVersion) が利用可能です"
+                alert.informativeText = description
+                alert.addButton(withTitle: "Download")
+                alert.addButton(withTitle: "Cancel")
+                // alert.showsSuppressionButton = true;
+                let ret = alert.runModal()
+                
+                if (ret == NSApplication.ModalResponse.alertFirstButtonReturn) {
+                    NSWorkspace.shared.open(URL(string: url)!)
+                }
             }
-        }
-        
-        if let callback = callback {
-            DispatchQueue.main.async {
+            
+            if let callback = callback {
                 callback(isAbleUpdate)
             }
         }

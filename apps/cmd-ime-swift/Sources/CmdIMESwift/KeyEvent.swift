@@ -41,15 +41,21 @@ class KeyEvent: NSObject {
                                  repeats: true)
         }
         else {
-            self.watch()
+            // Run watch() on a background thread to avoid blocking main thread
+            DispatchQueue.global(qos: .userInteractive).async {
+                self.watch()
+            }
         }
     }
     
     @objc func watchAXIsProcess(_ timer: Timer) {
         if AXIsProcessTrusted() {
             timer.invalidate()
-            
-            self.watch()
+
+            // Run watch() on a background thread to avoid blocking main thread
+            DispatchQueue.global(qos: .userInteractive).async {
+                self.watch()
+            }
         }
     }
     
@@ -123,7 +129,7 @@ class KeyEvent: NSObject {
                     let mySelf = Unmanaged<KeyEvent>.fromOpaque(observer).takeUnretainedValue()
                     return mySelf.eventCallback(proxy: proxy, type: type, event: event)
                 }
-                return Unmanaged.passUnretained(event)
+                return Unmanaged.passRetained(event)
             },
             userInfo: observer
             ) else {
@@ -140,7 +146,7 @@ class KeyEvent: NSObject {
     
     func eventCallback(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
         if isExclusionApp {
-            return Unmanaged.passUnretained(event)
+            return Unmanaged.passRetained(event)
         }
         
         if let mediaKeyEvent = MediaKeyEvent(event) {
@@ -152,7 +158,7 @@ class KeyEvent: NSObject {
             let keyCode = CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode))
             
             if modifierMasks[keyCode] == nil {
-                return Unmanaged.passUnretained(event)
+                return Unmanaged.passRetained(event)
             }
             return event.flags.rawValue & modifierMasks[keyCode]!.rawValue != 0 ?
                 modifierKeyDown(event) : modifierKeyUp(event)
@@ -166,7 +172,7 @@ class KeyEvent: NSObject {
         default:
             self.keyCode = nil
             
-            return Unmanaged.passUnretained(event)
+            return Unmanaged.passRetained(event)
         }
     }
     
@@ -187,12 +193,12 @@ class KeyEvent: NSObject {
         
         if hasConvertedEvent(event) {
             if let event = getConvertedEvent(event) {
-                return Unmanaged.passUnretained(event)
+                return Unmanaged.passRetained(event)
             }
             return nil
         }
         
-        return Unmanaged.passUnretained(event)
+        return Unmanaged.passRetained(event)
     }
     
     func keyUp(_ event: CGEvent) -> Unmanaged<CGEvent>? {
@@ -200,12 +206,12 @@ class KeyEvent: NSObject {
         
         if hasConvertedEvent(event) {
             if let event = getConvertedEvent(event) {
-                return Unmanaged.passUnretained(event)
+                return Unmanaged.passRetained(event)
             }
             return nil
         }
         
-        return Unmanaged.passUnretained(event)
+        return Unmanaged.passRetained(event)
     }
     
     func modifierKeyDown(_ event: CGEvent) -> Unmanaged<CGEvent>? {
@@ -222,7 +228,7 @@ class KeyEvent: NSObject {
             keyTextField.stringValue = shortcut.toString()
         }
         
-        return Unmanaged.passUnretained(event)
+        return Unmanaged.passRetained(event)
     }
     
     func modifierKeyUp(_ event: CGEvent) -> Unmanaged<CGEvent>? {
@@ -237,7 +243,7 @@ class KeyEvent: NSObject {
         
         self.keyCode = nil
         
-        return Unmanaged.passUnretained(event)
+        return Unmanaged.passRetained(event)
     }
     
     func mediaKeyDown(_ mediaKeyEvent: MediaKeyEvent) -> Unmanaged<CGEvent>? {
@@ -267,7 +273,7 @@ class KeyEvent: NSObject {
             return nil
         }
         
-        return Unmanaged.passUnretained(mediaKeyEvent.event)
+        return Unmanaged.passRetained(mediaKeyEvent.event)
     }
     
     func mediaKeyUp(_ mediaKeyEvent: MediaKeyEvent) -> Unmanaged<CGEvent>? {
@@ -278,7 +284,7 @@ class KeyEvent: NSObject {
         //     return nil
         // }
         
-        return Unmanaged.passUnretained(mediaKeyEvent.event)
+        return Unmanaged.passRetained(mediaKeyEvent.event)
     }
     
     func hasConvertedEvent(_ event: CGEvent, keyCode: CGKeyCode? = nil) -> Bool {
