@@ -83,8 +83,56 @@ xcodebuild -scheme CmdIMESwift -destination 'platform=macOS,arch=arm64' -skipPac
 2. Delete `⌘IME.app` from Applications
 3. Remove preferences: `rm ~/Library/Preferences/com.kazuki.cmd-ime.plist`
 
+---
+
+## 🌟 Part of the AIRIS Ecosystem
+
+⌘IME is part of the **AIRIS Suite** - a collection of self-hosted, privacy-first tools for developers.
+
+### Other AIRIS Tools
+
+| Component | Purpose |
+|-----------|---------|
+| **[airis-mcp-gateway](https://github.com/agiletec-inc/airis-mcp-gateway)** | 🚪 Unified MCP hub with 90% token reduction |
+| **[mindbase](https://github.com/agiletec-inc/mindbase)** | 💾 Local cross-session memory with semantic search |
+| **[airis-agent](https://github.com/agiletec-inc/airis-agent)** | 🧠 Intelligence layer for AI coding |
+| **[airis-workspace](https://github.com/agiletec-inc/airis-workspace)** | 🏗️ Docker-first monorepo manager |
+| **[neural](https://github.com/agiletec-inc/neural)** | 🌐 Local LLM translation tool (DeepL alternative) |
+| **[airiscode](https://github.com/agiletec-inc/airiscode)** | 🖥️ Terminal-first autonomous coding agent |
+
+---
+
+## 💖 Support This Project
+
+If you find ⌘IME helpful, consider supporting its development:
+
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support-yellow?style=for-the-badge&logo=buy-me-a-coffee)](https://buymeacoffee.com/kazukinakai)
+[![GitHub Sponsors](https://img.shields.io/badge/GitHub%20Sponsors-sponsor-pink?style=for-the-badge&logo=github)](https://github.com/sponsors/kazukinakai)
+
+Your support helps maintain and improve all AIRIS projects!
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions! Please:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+---
+
 ## License
 
 MIT License - See [LICENSE](LICENSE) file for details.
 
 Based on the original [cmd-eikana](https://github.com/imasanari/cmd-eikana) project.
+
+---
+
+**Built with ❤️ by the [Agiletec](https://github.com/agiletec-inc) team**
+
+**[Agiletec Inc.](https://github.com/agiletec-inc)** | **[Issues](https://github.com/agiletec-inc/cmd-ime/issues)** | **[Discussions](https://github.com/agiletec-inc/cmd-ime/discussions)**
