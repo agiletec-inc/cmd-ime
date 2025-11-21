@@ -26,7 +26,7 @@ jobs:
           # Get highest version tag (sort semantically)
           LATEST_TAG=$(git tag -l 'v*' | sort -t. -k1,1n -k2,2n -k3,3n | tail -1)
           if [ -z "$LATEST_TAG" ]; then
-            LATEST_TAG="v0.0.0"
+            LATEST_TAG="v1.0.0"
           fi
           CURRENT_VERSION=${LATEST_TAG#v}
 
