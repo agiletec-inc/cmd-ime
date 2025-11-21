@@ -7,7 +7,7 @@ mode = "hybrid"
 [project]
 id = "cmd-ime"
 binary_name = "cmd-ime"
-version = "1.0.1"
+version = "1.0.0"
 description = "⌘IME (Command IME) - Lightweight macOS app for switching between alphanumeric and kana input"
 authors = ["Kazuki <kazuki@agiletec.jp>"]
 license = "MIT"
