@@ -166,6 +166,12 @@ jobs:
 
             app "CmdIME.app"
 
+            postflight do
+              system_command "/usr/bin/xattr",
+                             args: ["-cr", "#{appdir}/CmdIME.app"],
+                             sudo: false
+            end
+
             zap trash: [
               "~/Library/Preferences/com.kazuki.cmd-ime.plist",
               "~/Library/Application Support/cmd-ime",
