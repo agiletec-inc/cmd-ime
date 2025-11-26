@@ -28,10 +28,10 @@ class KeyEvent: NSObject {
                                                             selector: #selector(KeyEvent.setActiveApp(_:)),
                                                             name: NSWorkspace.didActivateApplicationNotification,
                                                             object:nil)
-        
+
         let checkOptionPrompt = kAXTrustedCheckOptionPrompt.takeRetainedValue() as NSString
         let options: CFDictionary = [checkOptionPrompt: true] as NSDictionary
-        
+
         if !AXIsProcessTrustedWithOptions(options) {
             // アクセシビリティに設定されていない場合、設定されるまでループで待つ
             Timer.scheduledTimer(timeInterval: 1.0,
@@ -41,21 +41,16 @@ class KeyEvent: NSObject {
                                  repeats: true)
         }
         else {
-            // Run watch() on a background thread to avoid blocking main thread
-            DispatchQueue.global(qos: .userInteractive).async {
-                self.watch()
-            }
+            // Setup event monitoring (must be called from main thread for NSEvent monitors)
+            setupEventMonitoring()
         }
     }
-    
+
     @objc func watchAXIsProcess(_ timer: Timer) {
         if AXIsProcessTrusted() {
             timer.invalidate()
-
-            // Run watch() on a background thread to avoid blocking main thread
-            DispatchQueue.global(qos: .userInteractive).async {
-                self.watch()
-            }
+            // Setup event monitoring (must be called from main thread for NSEvent monitors)
+            setupEventMonitoring()
         }
     }
     
@@ -76,9 +71,9 @@ class KeyEvent: NSObject {
         }
     }
     
-    func watch() {
+    func setupEventMonitoring() {
         // マウスのドラッグバグ回避のため、NSEventとCGEventを併用
-        // CGEventのみでやる方法を捜索中
+        // NSEvent monitors must be set up on main thread
         let nsEventMaskList: NSEvent.EventTypeMask = [
             .leftMouseDown,
             .leftMouseUp,
@@ -88,37 +83,35 @@ class KeyEvent: NSObject {
             .otherMouseUp,
             .scrollWheel
         ]
-        
+
         NSEvent.addGlobalMonitorForEvents(matching: nsEventMaskList) {(event: NSEvent) -> Void in
             self.keyCode = nil
         }
-        
+
         NSEvent.addLocalMonitorForEvents(matching: nsEventMaskList) {(event: NSEvent) -> NSEvent? in
             self.keyCode = nil
             return event
         }
-        
+
+        // CGEvent tap can run on main thread's RunLoop since NSApplication.run() handles it
+        setupCGEventTap()
+    }
+
+    func setupCGEventTap() {
         let eventMaskList = [
             CGEventType.keyDown.rawValue,
             CGEventType.keyUp.rawValue,
             CGEventType.flagsChanged.rawValue,
-//            CGEventType.leftMouseDown.rawValue,
-//            CGEventType.leftMouseUp.rawValue,
-//            CGEventType.rightMouseDown.rawValue,
-//            CGEventType.rightMouseUp.rawValue,
-//            CGEventType.otherMouseDown.rawValue,
-//            CGEventType.otherMouseUp.rawValue,
-//            CGEventType.scrollWheel.rawValue,
             UInt32(NX_SYSDEFINED) // Media key Event
         ]
         var eventMask: UInt32 = 0
-        
+
         for mask in eventMaskList {
             eventMask |= (1 << mask)
         }
-        
+
         let observer = UnsafeMutableRawPointer(Unmanaged.passRetained(self).toOpaque())
-        
+
         guard let eventTap = CGEvent.tapCreate(
             tap: .cgSessionEventTap,
             place: .headInsertEventTap,
@@ -136,12 +129,13 @@ class KeyEvent: NSObject {
                 print("failed to create event tap")
                 exit(1)
         }
-        
+
         let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
-        
-        CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSource, .commonModes)
+
+        // Add to main RunLoop - NSApplication.run() will handle the event loop
+        CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
         CGEvent.tapEnable(tap: eventTap, enable: true)
-        CFRunLoopRun()
+        // Don't call CFRunLoopRun() - NSApplication.run() handles the main run loop
     }
     
     func eventCallback(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
