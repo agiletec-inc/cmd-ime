@@ -77,4 +77,7 @@ cat >> "$INFO_PLIST" <<'EOF'
 </plist>
 EOF
 
+echo ">> Signing app bundle"
+codesign --force --deep --sign - "$APP_DIR"
+
 echo ">> Bundle ready: $APP_DIR"

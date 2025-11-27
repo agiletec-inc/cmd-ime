@@ -19,6 +19,7 @@ class PreferenceWindowController: NSWindowController, NSWindowDelegate {
         )
         window.title = "⌘IME"
         window.center()
+        window.isReleasedWhenClosed = false
 
         let controller = PreferenceWindowController(window: window)
         window.delegate = controller

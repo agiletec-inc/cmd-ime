@@ -65,5 +65,8 @@ cat > "$CONTENTS_DIR/Info.plist" << 'EOF'
 </plist>
 EOF
 
+# Sign the app bundle (ad-hoc signature)
+codesign --force --deep --sign - "$BUNDLE_DIR"
+
 echo "App bundle created at: $BUNDLE_DIR"
 echo "To run: open $BUNDLE_DIR"
