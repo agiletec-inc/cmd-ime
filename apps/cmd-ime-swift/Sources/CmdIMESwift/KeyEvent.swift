@@ -1,6 +1,6 @@
 //
 //  KeyEvent.swift
-//  ⌘英かな
+//  ⌘IME
 //
 //  MIT License
 //  Copyright (c) 2016 iMasanari
