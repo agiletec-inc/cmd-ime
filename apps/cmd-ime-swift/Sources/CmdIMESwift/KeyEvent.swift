@@ -14,20 +14,20 @@ var exclusionAppsList: [AppData] = []
 var exclusionAppsDict: [String: String] = [:]
 
 class KeyEvent: NSObject {
-    var keyCode: CGKeyCode? = nil
+    var keyCode: CGKeyCode?
     var isExclusionApp = false
     let bundleId = Bundle.main.infoDictionary?["CFBundleIdentifier"] as? String ?? "com.kazuki.cmdime"
-    var hasConvertedEventLog: KeyMapping? = nil
+    var hasConvertedEventLog: KeyMapping?
 
     override init() {
         super.init()
     }
-    
+
     func start() {
         NSWorkspace.shared.notificationCenter.addObserver(self,
                                                             selector: #selector(KeyEvent.setActiveApp(_:)),
                                                             name: NSWorkspace.didActivateApplicationNotification,
-                                                            object:nil)
+                                                            object: nil)
 
         let checkOptionPrompt = kAXTrustedCheckOptionPrompt.takeRetainedValue() as NSString
         let options: CFDictionary = [checkOptionPrompt: true] as NSDictionary
@@ -39,8 +39,7 @@ class KeyEvent: NSObject {
                                  selector: #selector(KeyEvent.watchAXIsProcess(_:)),
                                  userInfo: nil,
                                  repeats: true)
-        }
-        else {
+        } else {
             // Setup event monitoring (must be called from main thread for NSEvent monitors)
             setupEventMonitoring()
         }
@@ -53,24 +52,26 @@ class KeyEvent: NSObject {
             setupEventMonitoring()
         }
     }
-    
+
     @objc func setActiveApp(_ notification: NSNotification) {
-        let app = notification.userInfo!["NSWorkspaceApplicationKey"] as! NSRunningApplication
-        
+        guard let app = notification.userInfo?["NSWorkspaceApplicationKey"] as? NSRunningApplication else {
+            return
+        }
+
         if let name = app.localizedName, let id = app.bundleIdentifier {
             isExclusionApp = exclusionAppsDict[id] != nil
-            
-            if (id != bundleId && !isExclusionApp) {
+
+            if id != bundleId && !isExclusionApp {
                 activeAppsList = activeAppsList.filter {$0.id != id}
                 activeAppsList.insert(AppData(name: name, id: id), at: 0)
-                
+
                 if activeAppsList.count > 10 {
                     activeAppsList.removeLast()
                 }
             }
         }
     }
-    
+
     func setupEventMonitoring() {
         // マウスのドラッグバグ回避のため、NSEventとCGEventを併用
         // NSEvent monitors must be set up on main thread
@@ -84,7 +85,7 @@ class KeyEvent: NSObject {
             .scrollWheel
         ]
 
-        NSEvent.addGlobalMonitorForEvents(matching: nsEventMaskList) {(event: NSEvent) -> Void in
+        NSEvent.addGlobalMonitorForEvents(matching: nsEventMaskList) {(_: NSEvent) in
             self.keyCode = nil
         }
 
@@ -117,7 +118,7 @@ class KeyEvent: NSObject {
             place: .headInsertEventTap,
             options: .defaultTap,
             eventsOfInterest: CGEventMask(eventMask),
-            callback: { (proxy: CGEventTapProxy, type: CGEventType, event: CGEvent, refcon: UnsafeMutableRawPointer?) -> Unmanaged<CGEvent>? in
+            callback: { (proxy, type, event, refcon) -> Unmanaged<CGEvent>? in
                 if let observer = refcon {
                     let mySelf = Unmanaged<KeyEvent>.fromOpaque(observer).takeUnretainedValue()
                     return mySelf.eventCallback(proxy: proxy, type: type, event: event)
@@ -137,160 +138,155 @@ class KeyEvent: NSObject {
         CGEvent.tapEnable(tap: eventTap, enable: true)
         // Don't call CFRunLoopRun() - NSApplication.run() handles the main run loop
     }
-    
+
     func eventCallback(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
         if isExclusionApp {
             return Unmanaged.passRetained(event)
         }
-        
+
         if let mediaKeyEvent = MediaKeyEvent(event) {
             return mediaKeyEvent.keyDown ? mediaKeyDown(mediaKeyEvent) : mediaKeyUp(mediaKeyEvent)
         }
-        
+
         switch type {
         case CGEventType.flagsChanged:
             let keyCode = CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode))
-            
+
             if modifierMasks[keyCode] == nil {
                 return Unmanaged.passRetained(event)
             }
             return event.flags.rawValue & modifierMasks[keyCode]!.rawValue != 0 ?
                 modifierKeyDown(event) : modifierKeyUp(event)
-        
+
         case CGEventType.keyDown:
             return keyDown(event)
-        
+
         case CGEventType.keyUp:
             return keyUp(event)
-        
+
         default:
             self.keyCode = nil
-            
+
             return Unmanaged.passRetained(event)
         }
     }
-    
+
     func keyDown(_ event: CGEvent) -> Unmanaged<CGEvent>? {
         #if DEBUG
             // print("keyCode: \(KeyboardShortcut(event).keyCode)")
              print(KeyboardShortcut(event).toString())
         #endif
-        
+
         self.keyCode = nil
-      
+
         if let keyTextField = activeKeyTextField {
             keyTextField.shortcut = KeyboardShortcut(event)
             keyTextField.stringValue = keyTextField.shortcut!.toString()
-                        
+
             return nil
         }
-        
+
         if hasConvertedEvent(event) {
             if let event = getConvertedEvent(event) {
                 return Unmanaged.passRetained(event)
             }
             return nil
         }
-        
+
         return Unmanaged.passRetained(event)
     }
-    
+
     func keyUp(_ event: CGEvent) -> Unmanaged<CGEvent>? {
         self.keyCode = nil
-        
+
         if hasConvertedEvent(event) {
             if let event = getConvertedEvent(event) {
                 return Unmanaged.passRetained(event)
             }
             return nil
         }
-        
+
         return Unmanaged.passRetained(event)
     }
-    
+
     func modifierKeyDown(_ event: CGEvent) -> Unmanaged<CGEvent>? {
         #if DEBUG
             print(KeyboardShortcut(event).toString())
         #endif
 
         self.keyCode = CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode))
-        
+
         if let keyTextField = activeKeyTextField, keyTextField.isAllowModifierOnly {
             let shortcut = KeyboardShortcut(event)
-            
+
             keyTextField.shortcut = shortcut
             keyTextField.stringValue = shortcut.toString()
         }
-        
+
         return Unmanaged.passRetained(event)
     }
-    
+
     func modifierKeyUp(_ event: CGEvent) -> Unmanaged<CGEvent>? {
         if activeKeyTextField != nil {
             self.keyCode = nil
-        }
-        else if self.keyCode == CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode)) {
+        } else if self.keyCode == CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode)) {
             if let convertedEvent = getConvertedEvent(event) {
                 KeyboardShortcut(convertedEvent).postEvent()
             }
         }
-        
+
         self.keyCode = nil
-        
+
         return Unmanaged.passRetained(event)
     }
-    
+
     func mediaKeyDown(_ mediaKeyEvent: MediaKeyEvent) -> Unmanaged<CGEvent>? {
         #if DEBUG
-            print(KeyboardShortcut(keyCode: CGKeyCode(1000 + mediaKeyEvent.keyCode), flags: mediaKeyEvent.flags).toString())
+            let shortcut = KeyboardShortcut(
+                keyCode: CGKeyCode(1000 + mediaKeyEvent.keyCode),
+                flags: mediaKeyEvent.flags
+            )
+            print(shortcut.toString())
         #endif
-        
+
         self.keyCode = nil
-        
+
         if let keyTextField = activeKeyTextField {
             if keyTextField.isAllowModifierOnly {
                 keyTextField.shortcut = KeyboardShortcut(keyCode: CGKeyCode(1000 + mediaKeyEvent.keyCode),
                                                          flags: mediaKeyEvent.flags)
                 keyTextField.stringValue = keyTextField.shortcut!.toString()
             }
-            
+
             return nil
         }
-        
-        if hasConvertedEvent(mediaKeyEvent.event, keyCode: CGKeyCode(1000 + mediaKeyEvent.keyCode)) {
-            if let event = getConvertedEvent(mediaKeyEvent.event, keyCode: CGKeyCode(1000 + mediaKeyEvent.keyCode)) {
+
+        let mediaKeyCodeValue = CGKeyCode(1000 + mediaKeyEvent.keyCode)
+        if hasConvertedEvent(mediaKeyEvent.event, keyCode: mediaKeyCodeValue) {
+            if let event = getConvertedEvent(mediaKeyEvent.event, keyCode: mediaKeyCodeValue) {
                 print(KeyboardShortcut(event).toString())
-                
+
                 print(event.type == CGEventType.keyDown)
                 event.post(tap: CGEventTapLocation.cghidEventTap)
             }
             return nil
         }
-        
+
         return Unmanaged.passRetained(mediaKeyEvent.event)
     }
-    
+
     func mediaKeyUp(_ mediaKeyEvent: MediaKeyEvent) -> Unmanaged<CGEvent>? {
-        // if hasConvertedEvent(mediaKeyEvent.event, keyCode: CGKeyCode(1000 + mediaKeyEvent.keyCode)) {
-        //     if let event = getConvertedEvent(mediaKeyEvent.event, keyCode: CGKeyCode(1000 + Int(mediaKeyEvent.keyCode))) {
-                // event.post(tap: CGEventTapLocation.cghidEventTap)
-        //     }
-        //     return nil
-        // }
-        
         return Unmanaged.passRetained(mediaKeyEvent.event)
     }
-    
+
     func hasConvertedEvent(_ event: CGEvent, keyCode: CGKeyCode? = nil) -> Bool {
         let shortcht = event.type.rawValue == UInt32(NX_SYSDEFINED) ?
             KeyboardShortcut(keyCode: 0, flags: MediaKeyEvent(event)!.flags) : KeyboardShortcut(event)
-        
+
         if let mappingList = shortcutList[keyCode ?? shortcht.keyCode] {
-            for mappings in mappingList {
-                if shortcht.isCover(mappings.input) {
-                    hasConvertedEventLog = mappings
-                    return true
-                }
+            for mappings in mappingList where shortcht.isCover(mappings.input) {
+                hasConvertedEventLog = mappings
+                return true
             }
         }
         hasConvertedEventLog = nil
@@ -298,39 +294,37 @@ class KeyEvent: NSObject {
     }
     func getConvertedEvent(_ event: CGEvent, keyCode: CGKeyCode? = nil) -> CGEvent? {
         var event = event
-        
+
         if event.type.rawValue == UInt32(NX_SYSDEFINED) {
             let flags = MediaKeyEvent(event)!.flags
             event = CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: true)!
             event.flags = flags
         }
-        
+
         let shortcht = KeyboardShortcut(event)
-        
+
         func getEvent(_ mappings: KeyMapping) -> CGEvent? {
             if mappings.output.keyCode == 999 {
                 // 999 is Disable
                 return nil
             }
-            
+
             event.setIntegerValueField(.keyboardEventKeycode, value: Int64(mappings.output.keyCode))
             event.flags = CGEventFlags(
                 rawValue: (event.flags.rawValue & ~mappings.input.flags.rawValue) | mappings.output.flags.rawValue
             )
-            
+
             return event
         }
-        
+
         if let mappingList = shortcutList[keyCode ?? shortcht.keyCode] {
             if let mappings = hasConvertedEventLog,
                 shortcht.isCover(mappings.input) {
-                
+
                 return getEvent(mappings)
             }
-            for mappings in mappingList {
-                if shortcht.isCover(mappings.input) {
-                    return getEvent(mappings)
-                }
+            for mappings in mappingList where shortcht.isCover(mappings.input) {
+                return getEvent(mappings)
             }
         }
         return nil

@@ -1,0 +1,7 @@
+excluded:
+  - .build
+  - Package.swift
+
+disabled_rules:
+  - todo
+  - identifier_name

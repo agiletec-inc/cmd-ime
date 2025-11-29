@@ -3,7 +3,7 @@ import Cocoa
 var statusItem = NSStatusBar.system.statusItem(withLength: CGFloat(NSStatusItem.variableLength))
 
 class AppDelegate: NSObject, NSApplicationDelegate {
-    var windowController : NSWindowController?
+    var windowController: NSWindowController?
     var preferenceWindowController: PreferenceWindowController!
     let keyEvent = KeyEvent()
 
@@ -53,8 +53,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
 
-        menu.addItem(withTitle: "About ⌘IME \(version)", action: #selector(AppDelegate.open(_:)), keyEquivalent: "")
-        menu.addItem(withTitle: "Preferences...", action: #selector(AppDelegate.openPreferencesSelector(_:)), keyEquivalent: "")
+        menu.addItem(
+            withTitle: "About ⌘IME \(version)",
+            action: #selector(AppDelegate.open(_:)),
+            keyEquivalent: ""
+        )
+        menu.addItem(
+            withTitle: "Preferences...",
+            action: #selector(AppDelegate.openPreferencesSelector(_:)),
+            keyEquivalent: ""
+        )
         menu.addItem(NSMenuItem.separator())
         menu.addItem(withTitle: "Restart", action: #selector(AppDelegate.restart(_:)), keyEquivalent: "")
         menu.addItem(withTitle: "Quit", action: #selector(AppDelegate.quit(_:)), keyEquivalent: "")
