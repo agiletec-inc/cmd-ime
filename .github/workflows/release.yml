@@ -124,12 +124,27 @@ jobs:
 
           echo "✅ Release v${VERSION} created successfully!"
 
-      - name: Update Homebrew cask
+      # Mint a 1-hour GitHub App installation token instead of using a
+      # static PAT. The `agiletec-inc-homebrew-publisher` App is installed
+      # on `homebrew-tap` only and shared via org-level credentials; same
+      # pattern as airis-workspace's release.yml. This eliminates the
+      # per-repo HOMEBREW_TAP_TOKEN PAT (which expires and breaks silently).
+      - name: Generate Homebrew tap App token
+        if: steps.check_tag.outputs.exists == 'false'
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.HOMEBREW_TAP_PUBLISHER_CLIENT_ID }}
+          private-key: ${{ secrets.HOMEBREW_TAP_PUBLISHER_PRIVATE_KEY }}
+          owner: agiletec-inc
+          repositories: homebrew-tap
+
+      - name: Update Homebrew cask via PR
         if: steps.check_tag.outputs.exists == 'false'
         env:
-          HOMEBREW_TAP_TOKEN: ${{secrets.HOMEBREW_TAP_TOKEN}}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
-          set -e
+          set -euo pipefail
 
           VERSION=${{steps.version.outputs.version}}
           SHA256=${{steps.sha256.outputs.sha256}}
@@ -138,17 +153,19 @@ jobs:
           echo "   Version: $VERSION"
           echo "   SHA256: $SHA256"
 
-          # Clone homebrew-tap repository
-          git clone https://$HOMEBREW_TAP_TOKEN@github.com/agiletec-inc/homebrew-tap.git
+          # Clone homebrew-tap with the App's installation token
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/agiletec-inc/homebrew-tap.git"
           cd homebrew-tap
 
-          # Ensure we're on main branch
-          git checkout main || git checkout -b main
+          BRANCH="release/cmd-ime-v${VERSION}"
 
-          # Create Casks directory if it doesn't exist
+          # Rerun safety: drop any stale ref from a previous failed attempt
+          gh api -X DELETE "repos/agiletec-inc/homebrew-tap/git/refs/heads/${BRANCH}" 2>/dev/null || true
+
+          git checkout -b "$BRANCH"
+
           mkdir -p Casks
 
-          # Update cask
           cat > Casks/cmd-ime.rb <<EOF
           cask "cmd-ime" do
             version "${VERSION}"
@@ -179,11 +196,26 @@ jobs:
           end
           EOF
 
-          # Commit and push
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
+          git config user.name "agiletec-inc-homebrew-publisher[bot]"
+          git config user.email "agiletec-inc-homebrew-publisher[bot]@users.noreply.github.com"
+
           git add Casks/cmd-ime.rb
-          git commit -m "Update cmd-ime to v${VERSION}" || echo "No changes to commit"
-          git push origin main || echo "Push failed, check if token has permissions"
+          if git diff --cached --quiet; then
+            echo "No changes to cask — skipping PR."
+            exit 0
+          fi
+          git commit -m "Update cmd-ime to v${VERSION}"
+          git push --set-upstream origin "$BRANCH"
+
+          # Open and immediately squash-merge. The App is a bypass actor on
+          # the `Homebrew tap protection` ruleset (bypass_mode: pull_request)
+          # so the merge succeeds even with required reviews.
+          PR_URL=$(gh pr create \
+            --base "$(gh repo view --json defaultBranchRef --jq .defaultBranchRef.name)" \
+            --head "$BRANCH" \
+            --title "chore(cask): update cmd-ime to v${VERSION}" \
+            --body "Automated cask update from \`agiletec-inc/cmd-ime@v${VERSION}\`. The publisher App bypasses required-review enforcement; this PR merges immediately.")
+
+          gh pr merge --squash --delete-branch "$PR_URL"
 
           echo "✅ Homebrew cask updated to v${VERSION}"
