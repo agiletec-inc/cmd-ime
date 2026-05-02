@@ -36,8 +36,8 @@ swift build -c release
 # Run tests
 swift test
 
-# Create DMG (requires build first)
-./scripts/build_app.sh && ./scripts/package.sh
+# Create release .app bundle
+./scripts/package.sh
 ```
 
 ## Source Files
