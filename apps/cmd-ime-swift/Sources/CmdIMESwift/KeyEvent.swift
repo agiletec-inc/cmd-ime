@@ -33,7 +33,7 @@ class KeyEvent: NSObject {
         let options: CFDictionary = [checkOptionPrompt: true] as NSDictionary
 
         if !AXIsProcessTrustedWithOptions(options) {
-            // アクセシビリティに設定されていない場合、設定されるまでループで待つ
+            // Wait until the user grants Accessibility permission.
             Timer.scheduledTimer(timeInterval: 1.0,
                                  target: self,
                                  selector: #selector(KeyEvent.watchAXIsProcess(_:)),
@@ -73,8 +73,9 @@ class KeyEvent: NSObject {
     }
 
     func setupEventMonitoring() {
-        // マウスのドラッグバグ回避のため、NSEventとCGEventを併用
-        // NSEvent monitors must be set up on main thread
+        // Pair NSEvent + CGEvent monitors to work around a mouse-drag bug
+        // where keyCode tracking would otherwise stick.
+        // NSEvent monitors must be set up on main thread.
         let nsEventMaskList: NSEvent.EventTypeMask = [
             .leftMouseDown,
             .leftMouseUp,
@@ -179,13 +180,6 @@ class KeyEvent: NSObject {
 
         self.keyCode = nil
 
-        if let keyTextField = activeKeyTextField {
-            keyTextField.shortcut = KeyboardShortcut(event)
-            keyTextField.stringValue = keyTextField.shortcut!.toString()
-
-            return nil
-        }
-
         if hasConvertedEvent(event) {
             if let event = getConvertedEvent(event) {
                 return Unmanaged.passRetained(event)
@@ -215,21 +209,11 @@ class KeyEvent: NSObject {
         #endif
 
         self.keyCode = CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode))
-
-        if let keyTextField = activeKeyTextField, keyTextField.isAllowModifierOnly {
-            let shortcut = KeyboardShortcut(event)
-
-            keyTextField.shortcut = shortcut
-            keyTextField.stringValue = shortcut.toString()
-        }
-
         return Unmanaged.passRetained(event)
     }
 
     func modifierKeyUp(_ event: CGEvent) -> Unmanaged<CGEvent>? {
-        if activeKeyTextField != nil {
-            self.keyCode = nil
-        } else if self.keyCode == CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode)) {
+        if self.keyCode == CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode)) {
             if let convertedEvent = getConvertedEvent(event) {
                 KeyboardShortcut(convertedEvent).postEvent()
             }
@@ -250,16 +234,6 @@ class KeyEvent: NSObject {
         #endif
 
         self.keyCode = nil
-
-        if let keyTextField = activeKeyTextField {
-            if keyTextField.isAllowModifierOnly {
-                keyTextField.shortcut = KeyboardShortcut(keyCode: CGKeyCode(1000 + mediaKeyEvent.keyCode),
-                                                         flags: mediaKeyEvent.flags)
-                keyTextField.stringValue = keyTextField.shortcut!.toString()
-            }
-
-            return nil
-        }
 
         let mediaKeyCodeValue = CGKeyCode(1000 + mediaKeyEvent.keyCode)
         if hasConvertedEvent(mediaKeyEvent.event, keyCode: mediaKeyCodeValue) {
