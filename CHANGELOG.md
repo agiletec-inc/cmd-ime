@@ -9,6 +9,14 @@ on the `main` branch via `.github/workflows/release.yml`.
 
 ## [Unreleased]
 
+### Fixed
+- Release builds are now signed with a stable Apple Development identity
+  imported from org-level secrets at CI time, instead of ad-hoc
+  `codesign --sign -`. The bundle's Designated Requirement now anchors
+  to the cert (and bundle id) rather than to a per-build cdhash, so
+  macOS TCC keeps the Accessibility grant across `brew upgrade --cask
+  cmd-ime`. Refs #23.
+
 ## [1.3.4] - 2026-05-02
 
 ### Fixed
