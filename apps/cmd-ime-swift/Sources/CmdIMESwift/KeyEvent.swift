@@ -140,7 +140,7 @@ class KeyEvent: NSObject {
     }
 
     func eventCallback(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
-        if isExclusionApp {
+        if isExclusionApp || isRecordingShortcut {
             return Unmanaged.passRetained(event)
         }
 
