@@ -1,0 +1,37 @@
+name: Feature request
+description: Suggest an idea for ⌘IME
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have an idea? Tell us about it. ⌘IME aims to stay simple and focused —
+        the more concretely you describe the problem you want solved, the
+        easier it is to evaluate.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      placeholder: As a US-keyboard user with a Korean second IME, I want to bind ⇧+Right Command to a specific source.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: A short description of how you'd expect this to work.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      placeholder: Karabiner-Elements does this but feels overkill for one shortcut.
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?

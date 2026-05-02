@@ -1,0 +1,61 @@
+name: Bug report
+description: Report something that is broken in ⌘IME
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. Please fill in as much detail
+        as you can — the more we know, the faster we can fix it.
+
+  - type: input
+    id: version
+    attributes:
+      label: ⌘IME version
+      description: Click the menu bar ⌘ icon → "About ⌘IME …" — the version is in the title.
+      placeholder: e.g. 1.2.5
+    validations:
+      required: true
+
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      description: Apple menu  → About This Mac
+      placeholder: e.g. macOS 14.5 (Sonoma)
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug.
+      placeholder: After granting Accessibility permission, the app does not start intercepting Command keys until I reinstall.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Install ⌘IME 1.2.5 from the latest .dmg
+        2. Launch and grant Accessibility permission
+        3. Press left Command — nothing happens
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      placeholder: Left Command should switch the input source to alphanumeric.
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: Console.app logs, screenshots, key mappings JSON (`defaults read com.kazuki.cmdime mappings`), etc.

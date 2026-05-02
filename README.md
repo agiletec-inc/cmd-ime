@@ -9,7 +9,7 @@ Built with Swift for modern macOS.
 - **Simple & Fast**: Minimal resource usage, instant response
 - **Swift-Only Stack**: Native macOS code (no Tauri/Electron)
 - **M4 Mac Optimized**: Native arm64 build for Apple Silicon
-- **macOS 14+ Support**: Built for modern macOS versions
+- **macOS 13+ Support**: Built for modern macOS versions
 - **Customizable**: Remap any key combination via preferences
 
 ## Installation
@@ -20,7 +20,7 @@ brew install --cask cmd-ime
 ```
 
 ### Manual Installation
-1. Download the latest release from [Releases](https://github.com/kazuki/cmd-ime/releases)
+1. Download the latest release from [Releases](https://github.com/agiletec-inc/cmd-ime/releases)
 2. Move `⌘IME.app` to Applications folder
 3. Right-click and select "Open" (first time only)
 4. Grant accessibility permissions when prompted
@@ -33,14 +33,14 @@ brew install --cask cmd-ime
 Customize key mappings in Preferences (⌘ icon in menu bar → Preferences).
 
 ### Login Item
-- Toggle "ログイン時に開く" from the menu bar or preferences to add/remove a LaunchAgent (`~/Library/LaunchAgents/com.kazuki.cmdime.launcher.plist`) so the app starts at login.
+Toggle **Launch at login** in Preferences → General to register the app with `SMAppService` (the modern macOS API for login items). The state is reflected in System Settings → General → Login Items & Extensions.
 
 ### Updates
-- Toggle "起動時にアップデートを確認" to query GitHub Releases on launch, or press "確認する" in Preferences → 設定 to manually check and open the latest release page.
+Toggle **Check for updates on launch** in Preferences → General, or press **Check Now** at any time. ⌘IME queries the GitHub Releases API and offers to open the download page when a newer version is available.
 
 ## System Requirements
 
-- macOS 14.0 (Sonoma) or later
+- macOS 13.0 (Ventura) or later
 - Apple Silicon (M1/M2/M3/M4) or Intel Mac
 
 ## Building from Source
@@ -54,10 +54,12 @@ Customize key mappings in Preferences (⌘ icon in menu bar → Preferences).
 git clone https://github.com/agiletec-inc/cmd-ime.git
 cd cmd-ime
 
-# Build the Swift menu bar app (bundle via Xcode or swift build)
+# Build the Swift menu bar app
 cd apps/cmd-ime-swift
 swift build -c release
-open CmdIMESwift.xcodeproj   # if you prefer GUI build
+
+# Or build a signed .app bundle ready to drag into /Applications
+./scripts/package.sh
 ```
 
 ## Development
@@ -69,19 +71,15 @@ See [CLAUDE.md](CLAUDE.md) for detailed development documentation.
 Run the automated test suites before shipping any change:
 
 ```bash
-# Swift menu bar app + CmdIME runtime tests
 cd apps/cmd-ime-swift
 swift test
-
-# Xcode scheme (UI tests & unit tests)
-xcodebuild -scheme CmdIMESwift -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation test
 ```
 
 ## Uninstall
 
 1. Quit the app (menu bar → ⌘ icon → Quit)
 2. Delete `⌘IME.app` from Applications
-3. Remove preferences: `rm ~/Library/Preferences/com.kazuki.cmd-ime.plist`
+3. Remove preferences: `defaults delete com.kazuki.cmdime`
 
 ---
 
