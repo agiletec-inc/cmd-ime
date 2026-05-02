@@ -93,7 +93,14 @@ cat >> "$INFO_PLIST" <<'EOF'
 </plist>
 EOF
 
-echo ">> Signing app bundle"
-codesign --force --deep --sign - "$APP_DIR"
+# Stable Designated Requirement keeps TCC/Accessibility grants alive across
+# brew upgrades. Set CMDIME_SIGNING_IDENTITY to a self-signed (or Developer ID)
+# identity in CI; falls back to ad-hoc for local dev when unset.
+SIGN_IDENTITY="${CMDIME_SIGNING_IDENTITY:--}"
+echo ">> Signing app bundle with identity: $SIGN_IDENTITY"
+codesign --force --deep \
+    --options runtime \
+    --sign "$SIGN_IDENTITY" \
+    "$APP_DIR"
 
 echo ">> Bundle ready: $APP_DIR"
