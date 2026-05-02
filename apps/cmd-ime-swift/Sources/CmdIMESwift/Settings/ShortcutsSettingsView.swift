@@ -18,13 +18,29 @@ struct ShortcutsSettingsView: View {
     }
 
     var body: some View {
-        VStack(spacing: 12) {
-            Text("Tap a row to record a new key. Modifier-only inputs (e.g. left ⌘) are allowed for Input.")
-                .font(.callout)
+        VStack(spacing: 8) {
+            Text("Input accepts modifier-only keys (e.g. left ⌘). Click a cell to record a new key.")
+                .font(.caption)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             List {
+                HStack(spacing: 12) {
+                    Text("Input")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .frame(minWidth: 120, alignment: .leading)
+                        .padding(.horizontal, 8)
+                    Spacer().frame(width: 16)
+                    Text("Output")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .frame(minWidth: 120, alignment: .leading)
+                        .padding(.horizontal, 8)
+                    Spacer()
+                }
+                .padding(.vertical, 2)
+
                 ForEach(Array(settings.keyMappings.enumerated()), id: \.offset) { index, mapping in
                     HStack(spacing: 12) {
                         recordingCell(label: mapping.input.toString(),
@@ -82,20 +98,28 @@ struct ShortcutsSettingsView: View {
         Button {
             rowEditing = RowEdit(index: index, field: field)
         } label: {
-            Text(label.isEmpty ? placeholder : label)
-                .frame(minWidth: 100, alignment: .leading)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(Color(NSColor.textBackgroundColor))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .stroke(Color(NSColor.separatorColor), lineWidth: 1)
-                )
-                .foregroundStyle(label.isEmpty ? Color.secondary : Color.primary)
+            HStack(spacing: 6) {
+                Text(label.isEmpty ? placeholder : label)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .foregroundStyle(label.isEmpty ? Color.secondary : Color.primary)
+                Image(systemName: "square.and.pencil")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+            .frame(minWidth: 120, alignment: .leading)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color(NSColor.textBackgroundColor))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(Color(NSColor.separatorColor), lineWidth: 1)
+            )
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .help("\(placeholder): click to record a new key")
     }
 }
