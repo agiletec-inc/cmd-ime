@@ -13,7 +13,23 @@ RESOURCES_DIR="$APP_DIR/Contents/Resources"
 INFO_PLIST="$APP_DIR/Contents/Info.plist"
 ICON_SOURCE="$PROJECT_ROOT/../../AppIcon.icns"
 
-VERSION="${CMD_IME_VERSION:-$(git -C "$PROJECT_ROOT" describe --tags --always 2>/dev/null || echo "0.0.0")}"
+resolve_version() {
+    if [[ -n "${CMD_IME_VERSION:-}" ]]; then
+        printf '%s' "$CMD_IME_VERSION"
+        return
+    fi
+    local manifest="$PROJECT_ROOT/../../manifest.toml"
+    if [[ -f "$manifest" ]]; then
+        local v
+        v=$(awk -F'"' '/^version[[:space:]]*=/ {print $2; exit}' "$manifest" 2>/dev/null)
+        if [[ -n "$v" ]]; then
+            printf '%s' "$v"
+            return
+        fi
+    fi
+    git -C "$PROJECT_ROOT" describe --tags --always 2>/dev/null || printf '0.0.0'
+}
+VERSION="$(resolve_version)"
 
 echo ">> Building Swift release binary"
 swift build -c release --package-path "$PROJECT_ROOT"
