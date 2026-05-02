@@ -99,6 +99,9 @@ class KeyEvent: NSObject {
         setupCGEventTap()
     }
 
+    private var eventTap: CFMachPort?
+    private var tapRetryAttempts = 0
+
     func setupCGEventTap() {
         let eventMaskList = [
             CGEventType.keyDown.rawValue,
@@ -114,7 +117,7 @@ class KeyEvent: NSObject {
 
         let observer = UnsafeMutableRawPointer(Unmanaged.passRetained(self).toOpaque())
 
-        guard let eventTap = CGEvent.tapCreate(
+        guard let tap = CGEvent.tapCreate(
             tap: .cgSessionEventTap,
             place: .headInsertEventTap,
             options: .defaultTap,
@@ -127,17 +130,67 @@ class KeyEvent: NSObject {
                 return Unmanaged.passRetained(event)
             },
             userInfo: observer
-            ) else {
-                print("failed to create event tap")
-                exit(1)
+        ) else {
+            // CGEvent.tapCreate can return nil even after AXIsProcessTrusted
+            // returns true if tccd hasn't fully propagated the grant yet
+            // (suspected cause of the post-install hang in #5). Retry on a
+            // short timer for up to ~30 seconds before giving up loudly —
+            // never `exit(1)` here, that just hides the problem.
+            Unmanaged<KeyEvent>.fromOpaque(observer).release()
+            tapRetryAttempts += 1
+            NSLog("⌘IME: CGEvent.tapCreate returned nil (attempt %d). Retrying…", tapRetryAttempts)
+            if tapRetryAttempts >= 30 {
+                NSLog("⌘IME: giving up on CGEvent tap after %d attempts. Restart the app or revoke + re-grant Accessibility.", tapRetryAttempts)
+                presentTapFailureAlert()
+                return
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                self?.setupCGEventTap()
+            }
+            return
         }
 
-        let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
+        eventTap = tap
+        tapRetryAttempts = 0
 
-        // Add to main RunLoop - NSApplication.run() will handle the event loop
+        let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
         CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
-        CGEvent.tapEnable(tap: eventTap, enable: true)
-        // Don't call CFRunLoopRun() - NSApplication.run() handles the main run loop
+        CGEvent.tapEnable(tap: tap, enable: true)
+
+        // Re-enable if the tap is disabled (timeout or input-source failure).
+        // Without this the user has to relaunch when macOS pauses the tap.
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(reenableTapIfNeeded),
+            name: NSWorkspace.didActivateApplicationNotification,
+            object: nil
+        )
+    }
+
+    @objc private func reenableTapIfNeeded() {
+        guard let tap = eventTap else { return }
+        if !CGEvent.tapIsEnabled(tap: tap) {
+            NSLog("⌘IME: CGEvent tap was disabled by the system; re-enabling.")
+            CGEvent.tapEnable(tap: tap, enable: true)
+        }
+    }
+
+    private func presentTapFailureAlert() {
+        DispatchQueue.main.async {
+            let alert = NSAlert()
+            alert.messageText = "⌘IME could not start its keyboard listener"
+            alert.informativeText =
+                "Open System Settings → Privacy & Security → Accessibility, " +
+                "remove ⌘IME if listed, re-add it, then restart the app."
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: "Open System Settings")
+            alert.addButton(withTitle: "Quit")
+            if alert.runModal() == .alertFirstButtonReturn,
+               let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+                NSWorkspace.shared.open(url)
+            }
+            NSApplication.shared.terminate(nil)
+        }
     }
 
     func eventCallback(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
