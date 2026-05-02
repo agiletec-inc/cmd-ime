@@ -25,12 +25,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
 
         menu.addItem(
-            withTitle: "About ⌘IME \(version)",
-            action: #selector(AppDelegate.open(_:)),
-            keyEquivalent: ""
-        )
-        menu.addItem(
-            withTitle: "Preferences...",
+            withTitle: "⌘IME \(version) — Preferences...",
             action: #selector(AppDelegate.openPreferencesSelector(_:)),
             keyEquivalent: ","
         )
@@ -60,11 +55,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         preferenceWindowController.showAndActivate(self)
         return false
-    }
-
-    @IBAction func open(_ sender: AnyObject) {
-        NSApp.orderFrontStandardAboutPanel(nil)
-        NSApp.activate(ignoringOtherApps: true)
     }
 
     @IBAction func openPreferencesSelector(_ sender: AnyObject) {

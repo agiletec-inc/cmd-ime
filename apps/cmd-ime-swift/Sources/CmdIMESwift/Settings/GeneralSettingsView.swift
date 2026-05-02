@@ -37,6 +37,22 @@ struct GeneralSettingsView: View {
                     Text("Version \(version)").foregroundStyle(.secondary)
                 }
             }
+
+            Section("About") {
+                HStack(spacing: 8) {
+                    Text("⌘IME").fontWeight(.semibold)
+                    Text("v\(version)").foregroundStyle(.secondary)
+                    Spacer()
+                    Link("GitHub", destination: URL(string: "https://github.com/agiletec-inc/cmd-ime")!)
+                    Text("·").foregroundStyle(.secondary)
+                    Link("Issues", destination: URL(string: "https://github.com/agiletec-inc/cmd-ime/issues")!)
+                    Text("·").foregroundStyle(.secondary)
+                    Link("License", destination: URL(string: "https://github.com/agiletec-inc/cmd-ime/blob/main/LICENSE")!)
+                }
+                Text("MIT License · Based on the original cmd-eikana by iMasanari")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
         .formStyle(.grouped)
     }
