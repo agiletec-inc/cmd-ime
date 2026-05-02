@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and discussion
+    url: https://github.com/agiletec-inc/cmd-ime/discussions
+    about: For general questions, usage tips, and ideas not yet ready for an issue.
