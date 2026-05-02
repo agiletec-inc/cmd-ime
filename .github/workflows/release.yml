@@ -71,20 +71,95 @@ jobs:
             echo "✅ Will create release v${{steps.version.outputs.version}}"
           fi
 
+      # A self-signed code-signing certificate gives the bundle a stable
+      # Designated Requirement (anchored to the cert SHA-1 + bundle id),
+      # which is what macOS TCC uses to remember Accessibility grants
+      # across `brew upgrade --cask cmd-ime`. Without this, ad-hoc signing
+      # produces a per-cdhash DR and the user has to re-grant Accessibility
+      # on every release. See Issue #23.
+      #
+      # The step is gated on the secret being present so a release does not
+      # fail before the cert has been minted and uploaded to org secrets;
+      # `package.sh` falls back to ad-hoc when CMDIME_SIGNING_IDENTITY is
+      # empty. Once the cert is in place the Verify step below upgrades
+      # silent ad-hoc fallback to a hard failure.
+      - name: Check signing secret availability
+        if: steps.check_tag.outputs.exists == 'false'
+        id: signing
+        env:
+          CERT_P12_BASE64: ${{ secrets.CMDIME_SIGNING_CERT_P12_BASE64 }}
+        run: |
+          if [ -n "$CERT_P12_BASE64" ]; then
+            echo "available=true" >> $GITHUB_OUTPUT
+          else
+            echo "available=false" >> $GITHUB_OUTPUT
+            echo "::warning::CMDIME_SIGNING_CERT_P12_BASE64 is not set; release will fall back to ad-hoc signing (TCC grants will reset on upgrade)"
+          fi
+
+      - name: Import code-signing certificate
+        if: steps.check_tag.outputs.exists == 'false' && steps.signing.outputs.available == 'true'
+        env:
+          CERT_P12_BASE64: ${{ secrets.CMDIME_SIGNING_CERT_P12_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.CMDIME_SIGNING_CERT_PASSWORD }}
+        run: |
+          set -euo pipefail
+          KEYCHAIN_PATH="$RUNNER_TEMP/cmdime-signing.keychain-db"
+          KEYCHAIN_PASSWORD=$(uuidgen)
+          CERT_PATH="$RUNNER_TEMP/cmdime-signing.p12"
+
+          echo "$CERT_P12_BASE64" | base64 --decode > "$CERT_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          security import "$CERT_PATH" \
+            -k "$KEYCHAIN_PATH" \
+            -P "$CERT_PASSWORD" \
+            -T /usr/bin/codesign
+
+          # Allow codesign to use the imported key without a UI prompt
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          # Prepend our keychain to the user search list so codesign -s "<name>" resolves it
+          EXISTING_KEYCHAINS=$(security list-keychains -d user | tr -d '"')
+          security list-keychains -d user -s "$KEYCHAIN_PATH" $EXISTING_KEYCHAINS
+
+          rm -f "$CERT_PATH"
+
       - name: Build macOS app
         if: steps.check_tag.outputs.exists == 'false'
+        env:
+          CMD_IME_VERSION: ${{ steps.version.outputs.version }}
+          CMDIME_SIGNING_IDENTITY: ${{ vars.CMDIME_SIGNING_IDENTITY }}
         run: |
           cd apps/cmd-ime-swift
 
-          # Set version from workflow
-          export CMD_IME_VERSION=${{steps.version.outputs.version}}
-
-          # Build using existing script
+          # Build using existing script (reads CMDIME_SIGNING_IDENTITY)
           bash scripts/package.sh
 
           # Copy to release directory
           mkdir -p ../../release
           cp -R .build/release/CmdIME.app ../../release/
+
+      - name: Verify code signature
+        if: steps.check_tag.outputs.exists == 'false'
+        run: |
+          set -euo pipefail
+          codesign -dvv release/CmdIME.app 2>&1 | tee /tmp/codesign.log
+
+          if [ "${{ steps.signing.outputs.available }}" = "true" ]; then
+            # Cert is configured: ad-hoc fallback would silently regress TCC stability
+            if grep -q "Signature=adhoc" /tmp/codesign.log; then
+              echo "ERROR: bundle ended up ad-hoc signed despite cert being configured (identity import failed)" >&2
+              exit 1
+            fi
+            echo "OK: signed with stable identity"
+          else
+            echo "::warning::bundle is ad-hoc signed; expected because CMDIME_SIGNING_CERT_P12_BASE64 is not set"
+          fi
 
       - name: Create DMG
         if: steps.check_tag.outputs.exists == 'false'
