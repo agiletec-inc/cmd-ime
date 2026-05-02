@@ -66,12 +66,12 @@ swift build
 
 ### Release Build & App Bundle
 ```bash
-./scripts/build_app.sh
+./scripts/package.sh
 ```
 
 ### Launch App
 ```bash
-open build/CmdIME.app
+open .build/release/CmdIME.app
 ```
 
 ## Test Summary
