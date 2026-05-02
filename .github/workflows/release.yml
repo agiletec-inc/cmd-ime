@@ -278,10 +278,14 @@ jobs:
             end
 
             # Gracefully quit the running menu bar agent before brew replaces
-            # the .app, otherwise the old process keeps running on the freed
-            # binary and macOS will not pick up the new build's Accessibility
-            # entry until the user manually restarts.
-            uninstall quit: "com.kazuki.cmdime"
+            # the .app, then SIGTERM/SIGKILL as fallback. AppleScript "quit"
+            # alone is unreliable for an LSUIElement app under load, so the
+            # signal stanza catches the process even if AE delivery fails.
+            uninstall quit:   "com.kazuki.cmdime",
+                      signal: [
+                        ["TERM", "com.kazuki.cmdime"],
+                        ["KILL", "com.kazuki.cmdime"],
+                      ]
 
             zap trash: [
               "~/Library/Application Support/cmd-ime",
