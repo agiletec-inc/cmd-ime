@@ -9,13 +9,23 @@ on the `main` branch via `.github/workflows/release.yml`.
 
 ## [Unreleased]
 
+### Added
+- `apps/cmd-ime-swift/scripts/generate-self-signed-cert.sh` — helper script to generate
+  a self-signed code-signing certificate for stable TCC grants without an Apple
+  Developer account.
+- Optional Notarization support in `release.yml` (gated by `APPLE_ID` secret).
+- `BundleWatcher` — the app now detects when its .app bundle is replaced on disk
+  (e.g. by `brew upgrade`) and auto-restarts to ensure it runs the new binary.
+- "About" section in General settings with version info and project links.
+
 ### Fixed
-- Release builds are now signed with a stable Apple Development identity
-  imported from org-level secrets at CI time, instead of ad-hoc
-  `codesign --sign -`. The bundle's Designated Requirement now anchors
-  to the cert (and bundle id) rather than to a per-build cdhash, so
-  macOS TCC keeps the Accessibility grant across `brew upgrade --cask
-  cmd-ime`. Refs #23.
+- Release builds now use a stable signing identity with `--timestamp` (Refs #23),
+  ensuring macOS TCC keeps Accessibility grants across upgrades.
+- Preferences menu item renamed to "⌘IME <version> — Preferences..." for better
+  at-a-glance version visibility.
+- Standalone About panel removed in favor of the integrated About section.
+- Shortcuts UI improved with column headers, edit icons, and tooltips.
+- Homebrew cask now uses `signal: [TERM, KILL]` for more reliable uninstalls.
 
 ## [1.3.4] - 2026-05-02
 

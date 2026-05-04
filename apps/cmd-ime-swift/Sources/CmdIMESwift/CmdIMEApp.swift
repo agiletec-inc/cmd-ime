@@ -6,6 +6,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var windowController: NSWindowController?
     var preferenceWindowController: PreferenceWindowController!
     let keyEvent = KeyEvent()
+    private let bundleWatcher = BundleWatcher()
 
     func applicationDidFinishLaunching(_ aNotification: Notification) {
         // Load preferences and apply them to the legacy globals KeyEvent reads.
@@ -24,12 +25,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
 
         menu.addItem(
-            withTitle: "About ⌘IME \(version)",
-            action: #selector(AppDelegate.open(_:)),
-            keyEquivalent: ""
-        )
-        menu.addItem(
-            withTitle: "Preferences...",
+            withTitle: "⌘IME \(version) — Preferences...",
             action: #selector(AppDelegate.openPreferencesSelector(_:)),
             keyEquivalent: ","
         )
@@ -42,16 +38,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if settings.checkUpdateAtLaunch {
             checkUpdate()
         }
+
+        // brew upgrade mv-replaces /Applications/CmdIME.app while we're running.
+        // macOS leaves us alive on the old Mach-O image with a cached Info.plist,
+        // which makes "Check Now" report a stale version. Restart on replace.
+        bundleWatcher.start { [weak self] in
+            guard let self else { return }
+            self.restart(self)
+        }
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        bundleWatcher.stop()
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         preferenceWindowController.showAndActivate(self)
         return false
-    }
-
-    @IBAction func open(_ sender: AnyObject) {
-        NSApp.orderFrontStandardAboutPanel(nil)
-        NSApp.activate(ignoringOtherApps: true)
     }
 
     @IBAction func openPreferencesSelector(_ sender: AnyObject) {
