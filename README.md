@@ -59,8 +59,13 @@ cd apps/cmd-ime-swift
 swift build -c release
 
 # Or build a signed .app bundle ready to drag into /Applications
+export CMDIME_SIGNING_IDENTITY="Developer ID Application: <Team Name> (<Team ID>)"
 ./scripts/package.sh
 ```
+
+`package.sh` looks up the Sparkle public key from your login keychain via
+Sparkle's `generate_keys` tool by default. Override with
+`CMDIME_SPARKLE_PUBLIC_ED_KEY` only if you need to inject a specific key.
 
 ## Development
 

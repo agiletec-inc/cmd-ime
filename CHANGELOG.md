@@ -9,6 +9,12 @@ on the `main` branch via `.github/workflows/release.yml`.
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-05-04
+
+### Changed
+- Major version bump to 2.0.1 to resolve versioning inconsistencies.
+
+
 ### Added
 - `apps/cmd-ime-swift/scripts/generate-self-signed-cert.sh` — helper script to generate
   a self-signed code-signing certificate for stable TCC grants without an Apple
@@ -113,7 +119,8 @@ on the `main` branch via `.github/workflows/release.yml`.
 - Renamed the app from `⌘英かな` to `⌘IME`.
 - Cleaned up repository structure.
 
-[Unreleased]: https://github.com/agiletec-inc/cmd-ime/compare/v1.3.4...HEAD
+[Unreleased]: https://github.com/agiletec-inc/cmd-ime/compare/v2.0.1...HEAD
+[2.0.1]: https://github.com/agiletec-inc/cmd-ime/releases/tag/v2.0.1
 [1.3.4]: https://github.com/agiletec-inc/cmd-ime/releases/tag/v1.3.4
 [1.3.3]: https://github.com/agiletec-inc/cmd-ime/releases/tag/v1.3.3
 [1.3.2]: https://github.com/agiletec-inc/cmd-ime/releases/tag/v1.3.2

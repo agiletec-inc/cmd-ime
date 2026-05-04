@@ -23,42 +23,14 @@ jobs:
       - name: Determine version bump
         id: version
         run: |
-          # Get highest version tag (sort semantically)
-          LATEST_TAG=$(git tag -l 'v*' | sort -t. -k1,1n -k2,2n -k3,3n | tail -1)
-          if [ -z "$LATEST_TAG" ]; then
-            LATEST_TAG="v1.0.0"
-          fi
-          CURRENT_VERSION=${LATEST_TAG#v}
-
-          echo "📦 Current version: $CURRENT_VERSION (from $LATEST_TAG)"
-
-          # Parse semver
-          IFS='.' read -r major minor patch <<< "$CURRENT_VERSION"
-
-          # Get commit messages since last tag
-          COMMITS=$(git log ${LATEST_TAG}..HEAD --pretty=format:"%s" 2>/dev/null || git log --pretty=format:"%s")
-
-          # Determine bump type based on conventional commits
-          BUMP_TYPE="patch"
-
-          if echo "$COMMITS" | grep -qE '^(feat!:|fix!:|BREAKING CHANGE:)'; then
-            BUMP_TYPE="major"
-          elif echo "$COMMITS" | grep -qE '^feat(\(.+\))?:'; then
-            BUMP_TYPE="minor"
+          VERSION=$(awk -F'"' '/^version[[:space:]]*=/ {print $2; exit}' manifest.toml)
+          if [ -z "$VERSION" ]; then
+            echo "Failed to read version from manifest.toml" >&2
+            exit 1
           fi
 
-          # Calculate new version
-          if [ "$BUMP_TYPE" = "major" ]; then
-            NEW_VERSION="$((major + 1)).0.0"
-          elif [ "$BUMP_TYPE" = "minor" ]; then
-            NEW_VERSION="${major}.$((minor + 1)).0"
-          else
-            NEW_VERSION="${major}.${minor}.$((patch + 1))"
-          fi
-
-          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
-          echo "bump_type=$BUMP_TYPE" >> $GITHUB_OUTPUT
-          echo "🚀 Bumping $CURRENT_VERSION → $NEW_VERSION ($BUMP_TYPE)"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "📦 Release version from manifest.toml: $VERSION"
 
       - name: Check if already released
         id: check_tag
@@ -134,6 +106,7 @@ jobs:
         env:
           CMD_IME_VERSION: ${{ steps.version.outputs.version }}
           CMDIME_SIGNING_IDENTITY: ${{ vars.CMDIME_SIGNING_IDENTITY }}
+          CMDIME_SPARKLE_PUBLIC_ED_KEY: ${{ vars.CMDIME_SPARKLE_PUBLIC_ED_KEY || secrets.CMDIME_SPARKLE_PUBLIC_ED_KEY }}
         run: |
           cd apps/cmd-ime-swift
 
