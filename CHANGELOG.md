@@ -19,8 +19,8 @@ on the `main` branch via `.github/workflows/release.yml`.
 - "About" section in General settings with version info and project links.
 
 ### Fixed
-- `package.sh` now uses `--timestamp` for code signing, improving signature
-  reliability and meeting Notarization requirements.
+- Release builds now use a stable signing identity with `--timestamp` (Refs #23),
+  ensuring macOS TCC keeps Accessibility grants across upgrades.
 - Preferences menu item renamed to "⌘IME <version> — Preferences..." for better
   at-a-glance version visibility.
 - Standalone About panel removed in favor of the integrated About section.
