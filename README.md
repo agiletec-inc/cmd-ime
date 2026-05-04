@@ -1,45 +1,45 @@
 # ⌘IME
 
-A lightweight macOS app that switches between alphanumeric and kana input when tapping left/right Command keys.
+⌘IME is a small macOS app that lets you switch between alphanumeric and kana input with the left and right Command keys.
 
-Built with Swift for modern macOS.
+Open the app, grant accessibility access once, and use your Command keys to switch input more quickly.
 
-## Features
+## Quick Start
 
-- **Simple & Fast**: Minimal resource usage, instant response
-- **Swift-Only Stack**: Native macOS code (no Tauri/Electron)
-- **M4 Mac Optimized**: Native arm64 build for Apple Silicon
-- **macOS 13+ Support**: Built for modern macOS versions
-- **Customizable**: Remap any key combination via preferences
-
-## Installation
-
-### GitHub Releases
 1. Download the latest `cmd-ime-<version>.dmg` from [Releases](https://github.com/agiletec-inc/cmd-ime/releases/latest)
 2. Open the DMG
 3. Drag `CmdIME.app` into `Applications`
 4. Launch the app and grant accessibility permissions when prompted
 
-### Homebrew
-Homebrew support is not the primary distribution path yet. If you want it, open an issue or comment on an existing one and it can be prioritized once there is demand.
+## What It Does
 
-## Usage
+- Left Command switches to alphanumeric input
+- Right Command switches to hiragana/kana input
+- Menu bar settings let you customize key mappings
 
-- **Left Command (⌘)**: Switch to Alphanumeric
-- **Right Command (⌘)**: Switch to Hiragana/Kana
+## Why Use It
 
-Customize key mappings in Preferences (⌘ icon in menu bar → Preferences).
+- **Simple & Fast**: Minimal resource usage, instant response
+- **Swift-Only Stack**: Native macOS code (no Tauri/Electron)
+- **Modern macOS Support**: Built for macOS 13 and later
+- **Customizable**: Remap key combinations in Preferences
 
-### Login Item
-Toggle **Launch at login** in Preferences → General to register the app with `SMAppService` (the modern macOS API for login items). The state is reflected in System Settings → General → Login Items & Extensions.
+## Settings
 
-### Updates
-Toggle **Check for updates on launch** in Preferences → General, or press **Check Now** at any time. ⌘IME queries the GitHub Releases API and offers to open the download page when a newer version is available.
+Open the menu bar icon and choose **Preferences** to:
 
-## System Requirements
+- Change the key mappings
+- Start the app at login
+- Check for updates
+
+## Requirements
 
 - macOS 13.0 (Ventura) or later
-- Apple Silicon (M1/M2/M3/M4) or Intel Mac
+- Apple Silicon or Intel Mac
+
+## Homebrew
+
+Homebrew support is not the primary distribution path yet. If you want it, open an issue or comment on an existing one and it can be prioritized once there is demand.
 
 ## Building from Source
 
@@ -52,11 +52,10 @@ Toggle **Check for updates on launch** in Preferences → General, or press **Ch
 git clone https://github.com/agiletec-inc/cmd-ime.git
 cd cmd-ime
 
-# Build the Swift menu bar app
 cd apps/cmd-ime-swift
 swift build -c release
 
-# Or build a signed .app bundle ready to package into a DMG
+# Or build a signed app bundle for packaging
 export CMDIME_SIGNING_IDENTITY="Developer ID Application: <Team Name> (<Team ID>)"
 ./scripts/package.sh
 ```
