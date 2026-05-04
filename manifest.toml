@@ -3,7 +3,7 @@
 [project]
 id = "cmd-ime"
 name = "⌘IME"
-version = "1.2.5"
+version = "2.0.1"
 description = "Lightweight macOS app for switching between alphanumeric and kana input using Command keys"
 authors = ["Kazuki <kazuki@agiletec.jp>"]
 license = "MIT"

@@ -1,4 +1,5 @@
 import Cocoa
+import Sparkle
 
 var statusItem = NSStatusBar.system.statusItem(withLength: CGFloat(NSStatusItem.variableLength))
 
@@ -6,9 +7,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var windowController: NSWindowController?
     var preferenceWindowController: PreferenceWindowController!
     let keyEvent = KeyEvent()
-    private let bundleWatcher = BundleWatcher()
+    private var updaterController: SPUStandardUpdaterController!
 
     func applicationDidFinishLaunching(_ aNotification: Notification) {
+        // Sparkle setup
+        updaterController = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
+
         // Load preferences and apply them to the legacy globals KeyEvent reads.
         let settings = AppSettings.shared
         settings.bootstrap()
@@ -30,26 +34,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             keyEquivalent: ","
         )
         menu.addItem(NSMenuItem.separator())
+        let updateItem = NSMenuItem(
+            title: "Check for Updates...",
+            action: #selector(SPUStandardUpdaterController.checkForUpdates(_:)),
+            keyEquivalent: ""
+        )
+        updateItem.target = updaterController
+        menu.addItem(updateItem)
+        menu.addItem(NSMenuItem.separator())
         menu.addItem(withTitle: "Restart", action: #selector(AppDelegate.restart(_:)), keyEquivalent: "")
         menu.addItem(withTitle: "Quit", action: #selector(AppDelegate.quit(_:)), keyEquivalent: "q")
 
         keyEvent.start()
-
-        if settings.checkUpdateAtLaunch {
-            checkUpdate()
-        }
-
-        // brew upgrade mv-replaces /Applications/CmdIME.app while we're running.
-        // macOS leaves us alive on the old Mach-O image with a cached Info.plist,
-        // which makes "Check Now" report a stale version. Restart on replace.
-        bundleWatcher.start { [weak self] in
-            guard let self else { return }
-            self.restart(self)
-        }
-    }
-
-    func applicationWillTerminate(_ notification: Notification) {
-        bundleWatcher.stop()
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
