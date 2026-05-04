@@ -14,16 +14,14 @@ Built with Swift for modern macOS.
 
 ## Installation
 
-### Homebrew (Coming Soon)
-```bash
-brew install --cask cmd-ime
-```
+### GitHub Releases
+1. Download the latest `cmd-ime-<version>.dmg` from [Releases](https://github.com/agiletec-inc/cmd-ime/releases/latest)
+2. Open the DMG
+3. Drag `CmdIME.app` into `Applications`
+4. Launch the app and grant accessibility permissions when prompted
 
-### Manual Installation
-1. Download the latest release from [Releases](https://github.com/agiletec-inc/cmd-ime/releases)
-2. Move `⌘IME.app` to Applications folder
-3. Right-click and select "Open" (first time only)
-4. Grant accessibility permissions when prompted
+### Homebrew
+Homebrew support is not the primary distribution path yet. If you want it, open an issue or comment on an existing one and it can be prioritized once there is demand.
 
 ## Usage
 
@@ -58,7 +56,7 @@ cd cmd-ime
 cd apps/cmd-ime-swift
 swift build -c release
 
-# Or build a signed .app bundle ready to drag into /Applications
+# Or build a signed .app bundle ready to package into a DMG
 export CMDIME_SIGNING_IDENTITY="Developer ID Application: <Team Name> (<Team ID>)"
 ./scripts/package.sh
 ```
