@@ -100,6 +100,7 @@ SIGN_IDENTITY="${CMDIME_SIGNING_IDENTITY:--}"
 echo ">> Signing app bundle with identity: $SIGN_IDENTITY"
 codesign --force --deep \
     --options runtime \
+    --timestamp \
     --sign "$SIGN_IDENTITY" \
     "$APP_DIR"
 

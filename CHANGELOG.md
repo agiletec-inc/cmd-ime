@@ -9,6 +9,24 @@ on the `main` branch via `.github/workflows/release.yml`.
 
 ## [Unreleased]
 
+### Added
+- `apps/cmd-ime-swift/scripts/generate-self-signed-cert.sh` — helper script to generate
+  a self-signed code-signing certificate for stable TCC grants without an Apple
+  Developer account.
+- Optional Notarization support in `release.yml` (gated by `APPLE_ID` secret).
+- `BundleWatcher` — the app now detects when its .app bundle is replaced on disk
+  (e.g. by `brew upgrade`) and auto-restarts to ensure it runs the new binary.
+- "About" section in General settings with version info and project links.
+
+### Fixed
+- `package.sh` now uses `--timestamp` for code signing, improving signature
+  reliability and meeting Notarization requirements.
+- Preferences menu item renamed to "⌘IME <version> — Preferences..." for better
+  at-a-glance version visibility.
+- Standalone About panel removed in favor of the integrated About section.
+- Shortcuts UI improved with column headers, edit icons, and tooltips.
+- Homebrew cask now uses `signal: [TERM, KILL]` for more reliable uninstalls.
+
 ## [1.3.4] - 2026-05-02
 
 ### Fixed
