@@ -1,7 +1,7 @@
 import Cocoa
 import Sparkle
 
-var statusItem = NSStatusBar.system.statusItem(withLength: CGFloat(NSStatusItem.variableLength))
+let statusItem = NSStatusBar.system.statusItem(withLength: CGFloat(NSStatusItem.variableLength))
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     var windowController: NSWindowController?

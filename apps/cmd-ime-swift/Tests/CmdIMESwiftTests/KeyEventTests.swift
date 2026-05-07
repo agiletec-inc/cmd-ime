@@ -20,80 +20,60 @@ final class KeyEventTests: XCTestCase {
         super.tearDown()
     }
 
-    func testHasConvertedEvent_MatchesMapping() {
-        // Setup: Map Command_L (55) to Kana (104)
-        let input = KeyboardShortcut(keyCode: 55, flags: .maskCommand)
-        let output = KeyboardShortcut(keyCode: 104)
-        let mapping = KeyMapping(input: input, output: output)
-
-        keyMappingList = [mapping]
-        keyMappingListToShortcutList()
-
-        // Create event: Command_L down
-        let event = CGEvent(keyboardEventSource: nil, virtualKey: 55, keyDown: true)!
-        event.flags = .maskCommand
-
-        // Verify
-        XCTAssertTrue(keyEvent.hasConvertedEvent(event))
-    }
-
-    func testHasConvertedEvent_NoMatch() {
-        // Setup: Map Command_L (55) to Kana (104)
-        let input = KeyboardShortcut(keyCode: 55, flags: .maskCommand)
-        let output = KeyboardShortcut(keyCode: 104)
-        let mapping = KeyMapping(input: input, output: output)
-
-        keyMappingList = [mapping]
-        keyMappingListToShortcutList()
-
-        // Create event: 'A' (0) down
+    func testKeyDown_PassesThrough_WhenNoMapping() {
+        // Setup: No mappings
         let event = CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: true)!
 
-        // Verify
-        XCTAssertFalse(keyEvent.hasConvertedEvent(event))
+        let result = keyEvent.keyDown(event)
+
+        XCTAssertNotNil(result)
+        XCTAssertEqual(result?.takeRetainedValue().getIntegerValueField(.keyboardEventKeycode), 0)
     }
 
-    func testGetConvertedEvent_ReturnsMappedEvent() {
+    func testKeyDown_RemapsEvent_WhenMappingExists() {
         // Setup: Map Command_L (55) to Kana (104)
         let input = KeyboardShortcut(keyCode: 55, flags: .maskCommand)
         let output = KeyboardShortcut(keyCode: 104)
-        let mapping = KeyMapping(input: input, output: output)
-
-        keyMappingList = [mapping]
+        keyMappingList = [KeyMapping(input: input, output: output)]
         keyMappingListToShortcutList()
 
-        // Create event: Command_L down
         let event = CGEvent(keyboardEventSource: nil, virtualKey: 55, keyDown: true)!
         event.flags = .maskCommand
 
-        // Execute
-        // We need to call hasConvertedEvent first to set the internal state (hasConvertedEventLog)
-        _ = keyEvent.hasConvertedEvent(event)
-        let convertedEvent = keyEvent.getConvertedEvent(event)
+        let result = keyEvent.keyDown(event)
 
-        // Verify
-        XCTAssertNotNil(convertedEvent)
-        XCTAssertEqual(convertedEvent?.getIntegerValueField(.keyboardEventKeycode), 104)
+        XCTAssertNotNil(result)
+        XCTAssertEqual(result?.takeRetainedValue().getIntegerValueField(.keyboardEventKeycode), 104)
     }
 
-    func testGetConvertedEvent_DisableMapping() {
+    func testKeyDown_SwallowsEvent_WhenMappedToDisable() {
         // Setup: Map Command_L (55) to Disable (999)
         let input = KeyboardShortcut(keyCode: 55, flags: .maskCommand)
-        let output = KeyboardShortcut(keyCode: 999) // 999 is Disable
-        let mapping = KeyMapping(input: input, output: output)
-
-        keyMappingList = [mapping]
+        let output = KeyboardShortcut(keyCode: 999)
+        keyMappingList = [KeyMapping(input: input, output: output)]
         keyMappingListToShortcutList()
 
-        // Create event: Command_L down
         let event = CGEvent(keyboardEventSource: nil, virtualKey: 55, keyDown: true)!
         event.flags = .maskCommand
 
-        // Execute
-        _ = keyEvent.hasConvertedEvent(event)
-        let convertedEvent = keyEvent.getConvertedEvent(event)
+        let result = keyEvent.keyDown(event)
 
-        // Verify: Should return nil for Disable mapping
-        XCTAssertNil(convertedEvent)
+        XCTAssertNil(result)
+    }
+
+    func testKeyDown_NoMatch_WhenDifferentKey() {
+        // Setup: Map Command_L (55) to Kana (104)
+        let input = KeyboardShortcut(keyCode: 55, flags: .maskCommand)
+        let output = KeyboardShortcut(keyCode: 104)
+        keyMappingList = [KeyMapping(input: input, output: output)]
+        keyMappingListToShortcutList()
+
+        // Press 'A' (keyCode 0) — no mapping
+        let event = CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: true)!
+
+        let result = keyEvent.keyDown(event)
+
+        XCTAssertNotNil(result)
+        XCTAssertEqual(result?.takeRetainedValue().getIntegerValueField(.keyboardEventKeycode), 0)
     }
 }
