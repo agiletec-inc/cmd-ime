@@ -10,19 +10,22 @@
 import Cocoa
 import ServiceManagement
 
-func setLaunchAtStartup(_ enabled: Bool) {
+@discardableResult
+func setLaunchAtStartup(_ enabled: Bool) -> Bool {
     let service = SMAppService.mainApp
     do {
         if enabled {
-            guard service.status != .enabled else { return }
+            guard service.status != .enabled else { return true }
             try service.register()
         } else {
-            guard service.status != .notRegistered else { return }
+            guard service.status != .notRegistered else { return true }
             try service.unregister()
         }
+        return true
     } catch {
         NSLog("⌘IME: failed to %@ login item: %@",
               enabled ? "register" : "unregister",
-              String(describing: error))
+              error.localizedDescription)
+        return false
     }
 }

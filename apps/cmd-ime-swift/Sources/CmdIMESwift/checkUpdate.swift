@@ -26,7 +26,10 @@ func checkUpdate(manual: Bool = false, _ callback: ((_ isNewVer: Bool?) -> Void)
     request.setValue("CmdIME/\(currentVersion)", forHTTPHeaderField: "User-Agent")
     request.timeoutInterval = 10
 
-    URLSession.shared.dataTask(with: request) { data, response, _ in
+    URLSession.shared.dataTask(with: request) { data, response, error in
+        if let error = error {
+            NSLog("⌘IME: update check failed: %@", error.localizedDescription)
+        }
         let result = parseLatestRelease(data: data, response: response)
 
         DispatchQueue.main.async {

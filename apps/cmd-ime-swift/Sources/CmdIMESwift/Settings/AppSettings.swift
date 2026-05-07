@@ -112,7 +112,12 @@ final class AppSettings: ObservableObject {
             .sink { [weak self] newValue in
                 guard let self = self, !self.isApplyingExternalUpdate else { return }
                 self.defaults.set(newValue ? 1 : 0, forKey: Keys.launchAtStartup)
-                setLaunchAtStartup(newValue)
+                if !setLaunchAtStartup(newValue) {
+                    self.isApplyingExternalUpdate = true
+                    self.launchAtStartup = !newValue
+                    self.defaults.set(!newValue ? 1 : 0, forKey: Keys.launchAtStartup)
+                    self.isApplyingExternalUpdate = false
+                }
             }
             .store(in: &cancellables)
 
