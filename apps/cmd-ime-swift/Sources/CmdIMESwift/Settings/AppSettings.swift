@@ -129,7 +129,7 @@ final class AppSettings: ObservableObject {
             .sink { [weak self] newValue in
                 guard let self = self else { return }
                 self.defaults.set(newValue ? 1 : 0, forKey: Keys.showMenuBarIcon)
-                statusItem.isVisible = newValue
+                AppDelegate.shared?.statusItem.isVisible = newValue
             }
             .store(in: &cancellables)
 

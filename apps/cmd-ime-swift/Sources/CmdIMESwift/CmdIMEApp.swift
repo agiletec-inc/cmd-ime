@@ -1,15 +1,19 @@
 import Cocoa
 import Sparkle
 
-let statusItem = NSStatusBar.system.statusItem(withLength: CGFloat(NSStatusItem.variableLength))
-
 class AppDelegate: NSObject, NSApplicationDelegate {
+    static weak var shared: AppDelegate?
+
+    var statusItem: NSStatusItem!
     var windowController: NSWindowController?
     var preferenceWindowController: PreferenceWindowController!
     let keyEvent = KeyEvent()
     private var updaterController: SPUStandardUpdaterController!
 
     func applicationDidFinishLaunching(_ aNotification: Notification) {
+        AppDelegate.shared = self
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+
         // Sparkle setup
         updaterController = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
 
