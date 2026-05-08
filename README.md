@@ -6,6 +6,14 @@ Open the app, grant accessibility access once, and use your Command keys to swit
 
 ## Quick Start
 
+**Homebrew (recommended)**
+
+```bash
+brew install --cask agiletec-inc/tap/cmd-ime
+```
+
+**DMG**
+
 1. Download the latest `cmd-ime-<version>.dmg` from [Releases](https://github.com/agiletec-inc/cmd-ime/releases/latest)
 2. Open the DMG
 3. Drag `CmdIME.app` into `Applications`
@@ -15,7 +23,9 @@ Open the app, grant accessibility access once, and use your Command keys to swit
 
 - Left Command switches to alphanumeric input
 - Right Command switches to hiragana/kana input
-- Menu bar settings let you customize key mappings
+- Fully customizable key mappings — remap any modifier combination to any key
+- App exclusion list — disable switching in specific apps
+- Auto-restarts when updated via `brew upgrade` (no manual re-launch needed)
 
 ## Why Use It
 
@@ -26,20 +36,16 @@ Open the app, grant accessibility access once, and use your Command keys to swit
 
 ## Settings
 
-Open the menu bar icon and choose **Preferences** to:
+Open the menu bar icon and choose **Preferences** (or press `,`) to access three tabs:
 
-- Change the key mappings
-- Start the app at login
-- Check for updates
+- **General** — Launch at login, menu bar icon visibility, update check settings, version info
+- **Shortcuts** — Add, remove, and reorder key mappings
+- **Exclusions** — Apps where IME switching is disabled
 
 ## Requirements
 
 - macOS 13.0 (Ventura) or later
-- Apple Silicon or Intel Mac
-
-## Homebrew
-
-Homebrew support is not the primary distribution path yet. If you want it, open an issue or comment on an existing one and it can be prioritized once there is demand.
+- Apple Silicon (arm64)
 
 ## Building from Source
 
@@ -50,19 +56,19 @@ Homebrew support is not the primary distribution path yet. If you want it, open 
 ### Build Steps
 ```bash
 git clone https://github.com/agiletec-inc/cmd-ime.git
-cd cmd-ime
+cd cmd-ime/apps/cmd-ime-swift
 
-cd apps/cmd-ime-swift
+# Debug build
+swift build
+
+# Release binary
 swift build -c release
 
-# Or build a signed app bundle for packaging
-export CMDIME_SIGNING_IDENTITY="Developer ID Application: <Team Name> (<Team ID>)"
-./scripts/package.sh
+# Signed .app bundle for local testing
+CMDIME_BUILD_MODE=local ./scripts/package.sh
 ```
 
-`package.sh` looks up the Sparkle public key from your login keychain via
-Sparkle's `generate_keys` tool by default. Override with
-`CMDIME_SPARKLE_PUBLIC_ED_KEY` only if you need to inject a specific key.
+For distribution builds, set `CMDIME_SIGNING_IDENTITY` (Developer ID Application) and `CMDIME_SPARKLE_PUBLIC_ED_KEY`. `package.sh` falls back to ad-hoc signing when neither is set.
 
 ## Development
 

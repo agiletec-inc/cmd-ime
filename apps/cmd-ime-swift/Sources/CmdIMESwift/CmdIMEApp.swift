@@ -45,6 +45,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(withTitle: "Restart", action: #selector(AppDelegate.restart(_:)), keyEquivalent: "")
         menu.addItem(withTitle: "Quit", action: #selector(AppDelegate.quit(_:)), keyEquivalent: "q")
 
+        MainActor.assumeIsolated { AutoSwitcher.shared.start() }
         keyEvent.start()
     }
 

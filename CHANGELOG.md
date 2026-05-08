@@ -9,6 +9,25 @@ on the `main` branch via `.github/workflows/release.yml`.
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-05-09
+
+### Added
+- **Smart input switching (Beta)** — new toggle in General settings (default off).
+  When enabled:
+  - Remembers the last active input source per app and restores it when switching back.
+  - Automatically switches to alphanumeric when focus moves to a browser URL bar
+    (detected via AX description containing "address" / "url" / "location"; works in
+    Safari, Chrome, Edge, Firefox, and similar browsers).
+  - Polling runs every 0.5 s with lightweight AX attribute reads; disabled apps are
+    excluded from URL-field detection.
+- **Exclusions — "Add App…" button** — opens a file picker (defaulting to /Applications)
+  so any installed app can be excluded without needing to switch to it first.
+
+### Changed
+- **Shortcuts Output cell** — replaced key recorder with a preset dropdown (英数 /
+  かな / 無効) plus a "Custom key…" fallback. Fixes the inability to set IME virtual
+  keys (英数 keyCode 102, かな keyCode 104) on keyboards that lack physical 英数/かな keys.
+
 ## [2.0.1] - 2026-05-04
 
 ### Changed
@@ -119,7 +138,8 @@ on the `main` branch via `.github/workflows/release.yml`.
 - Renamed the app from `⌘英かな` to `⌘IME`.
 - Cleaned up repository structure.
 
-[Unreleased]: https://github.com/agiletec-inc/cmd-ime/compare/v2.0.1...HEAD
+[Unreleased]: https://github.com/agiletec-inc/cmd-ime/compare/v2.2.0...HEAD
+[2.2.0]: https://github.com/agiletec-inc/cmd-ime/releases/tag/v2.2.0
 [2.0.1]: https://github.com/agiletec-inc/cmd-ime/releases/tag/v2.0.1
 [1.3.4]: https://github.com/agiletec-inc/cmd-ime/releases/tag/v1.3.4
 [1.3.3]: https://github.com/agiletec-inc/cmd-ime/releases/tag/v1.3.3
