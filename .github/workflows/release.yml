@@ -147,8 +147,21 @@ jobs:
 
           echo "✅ DMG created: cmd-ime-${VERSION}.dmg"
 
+      - name: Check notarization availability
+        if: steps.check_tag.outputs.exists == 'false'
+        id: notarize
+        env:
+          _APPLE_ID: ${{ secrets.APPLE_ID }}
+        run: |
+          if [ -n "$_APPLE_ID" ]; then
+            echo "available=true" >> $GITHUB_OUTPUT
+          else
+            echo "available=false" >> $GITHUB_OUTPUT
+            echo "::warning::APPLE_ID is not set; skipping notarization"
+          fi
+
       - name: Notarize DMG
-        if: steps.check_tag.outputs.exists == 'false' && secrets.APPLE_ID != ''
+        if: steps.check_tag.outputs.exists == 'false' && steps.notarize.outputs.available == 'true'
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
