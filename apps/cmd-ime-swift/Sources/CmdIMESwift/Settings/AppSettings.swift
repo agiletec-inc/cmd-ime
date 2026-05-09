@@ -25,6 +25,7 @@ final class AppSettings: ObservableObject {
         static let legacyCheckUpdateAtLaunch = "checkUpdateAtlaunch"
         static let keyMappings = "mappings"
         static let exclusionApps = "exclusionApps"
+        static let autoSwitching = "autoSwitching"
     }
 
     private let defaults: UserDefaults
@@ -34,6 +35,7 @@ final class AppSettings: ObservableObject {
     @Published var checkUpdateAtLaunch: Bool
     @Published var keyMappings: [KeyMapping]
     @Published var exclusionApps: [AppData]
+    @Published var autoSwitching: Bool
 
     private var cancellables: Set<AnyCancellable> = []
     private var isApplyingExternalUpdate = false
@@ -52,6 +54,7 @@ final class AppSettings: ObservableObject {
 
         self.keyMappings = Self.loadKeyMappings(from: defaults)
         self.exclusionApps = Self.loadExclusionApps(from: defaults)
+        self.autoSwitching = (defaults.object(forKey: Keys.autoSwitching) as? Int ?? 0) != 0
 
         publishGlobalsFromState()
         observePropertyChanges()
@@ -126,7 +129,7 @@ final class AppSettings: ObservableObject {
             .sink { [weak self] newValue in
                 guard let self = self else { return }
                 self.defaults.set(newValue ? 1 : 0, forKey: Keys.showMenuBarIcon)
-                statusItem.isVisible = newValue
+                AppDelegate.shared?.statusItem.isVisible = newValue
             }
             .store(in: &cancellables)
 
@@ -154,6 +157,13 @@ final class AppSettings: ObservableObject {
                 self.defaults.set(apps.map { $0.toDictionary() }, forKey: Keys.exclusionApps)
                 exclusionAppsList = apps
                 exclusionAppsDict = Dictionary(uniqueKeysWithValues: apps.map { ($0.id, $0.name) })
+            }
+            .store(in: &cancellables)
+
+        $autoSwitching
+            .dropFirst()
+            .sink { [weak self] newValue in
+                self?.defaults.set(newValue ? 1 : 0, forKey: Keys.autoSwitching)
             }
             .store(in: &cancellables)
     }

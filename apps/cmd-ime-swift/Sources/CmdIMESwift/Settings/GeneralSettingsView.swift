@@ -38,6 +38,17 @@ struct GeneralSettingsView: View {
                 }
             }
 
+            Section {
+                Toggle(isOn: $settings.autoSwitching) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Smart input switching")
+                        Text("Restores per-app input source on switch. Auto-switches to alphanumeric in URL bars. (Beta)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
             Section("About") {
                 HStack(spacing: 8) {
                     Text("⌘IME").fontWeight(.semibold)

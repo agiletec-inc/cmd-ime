@@ -85,6 +85,11 @@ class KeyEvent: NSObject {
                     activeAppsList.removeLast()
                 }
             }
+
+            // NSWorkspace notifications always fire on the main thread.
+            MainActor.assumeIsolated {
+                AutoSwitcher.shared.handleAppActivation(bundleID: id, pid: app.processIdentifier)
+            }
         }
     }
 

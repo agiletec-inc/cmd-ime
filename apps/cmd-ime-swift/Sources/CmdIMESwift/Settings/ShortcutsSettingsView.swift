@@ -7,19 +7,30 @@ import SwiftUI
 
 struct ShortcutsSettingsView: View {
     @EnvironmentObject private var settings: AppSettings
-    @State private var selectedRowID: UUID?
-    @State private var rowEditing: RowEdit?
+    @State private var inputEditing: InputEdit?
+    @State private var customOutputEditing: CustomOutputEdit?
 
-    private struct RowEdit: Identifiable {
+    private struct InputEdit: Identifiable {
         let id = UUID()
         let index: Int
-        let field: Field
-        enum Field { case input, output }
     }
+    private struct CustomOutputEdit: Identifiable {
+        let id = UUID()
+        let index: Int
+    }
+
+    // Preset output options shown in the dropdown.
+    // IME virtual keys (英数/かな) can't be pressed physically on most keyboards,
+    // so the output field uses a picker instead of a key recorder.
+    private static let outputPresets: [(label: String, shortcut: KeyboardShortcut)] = [
+        ("英数  (Alphanumeric)", KeyboardShortcut(keyCode: 102)),
+        ("かな  (Kana)", KeyboardShortcut(keyCode: 104)),
+        ("無効  (Disable key)", KeyboardShortcut(keyCode: 999)),
+    ]
 
     var body: some View {
         VStack(spacing: 8) {
-            Text("Input accepts modifier-only keys (e.g. left ⌘). Click a cell to record a new key.")
+            Text("Input: click to record a modifier key (e.g. left ⌘). Output: choose from the preset menu.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -43,15 +54,9 @@ struct ShortcutsSettingsView: View {
 
                 ForEach(Array(settings.keyMappings.enumerated()), id: \.offset) { index, mapping in
                     HStack(spacing: 12) {
-                        recordingCell(label: mapping.input.toString(),
-                                       placeholder: "Input",
-                                       index: index,
-                                       field: .input)
+                        inputCell(label: mapping.input.toString(), index: index)
                         Image(systemName: "arrow.right").foregroundStyle(.secondary)
-                        recordingCell(label: mapping.output.toString(),
-                                       placeholder: "Output",
-                                       index: index,
-                                       field: .output)
+                        outputCell(shortcut: mapping.output, index: index)
                         Spacer()
                         Button(role: .destructive) {
                             settings.removeKeyMapping(at: index)
@@ -75,51 +80,85 @@ struct ShortcutsSettingsView: View {
                 Spacer()
             }
         }
-        .sheet(item: $rowEditing) { edit in
+        .sheet(item: $inputEditing) { edit in
             KeyRecorderSheet(
-                title: edit.field == .input ? "Record Input" : "Record Output",
-                allowModifierOnly: edit.field == .input,
-                initial: edit.field == .input
-                    ? settings.keyMappings[edit.index].input
-                    : settings.keyMappings[edit.index].output,
-                onCommit: { shortcut in
-                    if edit.field == .input {
-                        settings.updateKeyMapping(at: edit.index, input: shortcut)
-                    } else {
-                        settings.updateKeyMapping(at: edit.index, output: shortcut)
-                    }
-                }
+                title: "Record Input",
+                allowModifierOnly: true,
+                initial: settings.keyMappings[edit.index].input,
+                onCommit: { settings.updateKeyMapping(at: edit.index, input: $0) }
+            )
+        }
+        .sheet(item: $customOutputEditing) { edit in
+            KeyRecorderSheet(
+                title: "Record Custom Output",
+                allowModifierOnly: false,
+                initial: settings.keyMappings[edit.index].output,
+                onCommit: { settings.updateKeyMapping(at: edit.index, output: $0) }
             )
         }
     }
 
     @ViewBuilder
-    private func recordingCell(label: String, placeholder: String, index: Int, field: RowEdit.Field) -> some View {
+    private func inputCell(label: String, index: Int) -> some View {
         Button {
-            rowEditing = RowEdit(index: index, field: field)
+            inputEditing = InputEdit(index: index)
         } label: {
             HStack(spacing: 6) {
-                Text(label.isEmpty ? placeholder : label)
+                Text(label.isEmpty ? "Input" : label)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .foregroundStyle(label.isEmpty ? Color.secondary : Color.primary)
                 Image(systemName: "square.and.pencil")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
             }
+            .cellStyle()
+        }
+        .buttonStyle(.plain)
+        .help("Click to record a new input key")
+    }
+
+    @ViewBuilder
+    private func outputCell(shortcut: KeyboardShortcut, index: Int) -> some View {
+        Menu {
+            ForEach(Self.outputPresets, id: \.label) { preset in
+                Button {
+                    settings.updateKeyMapping(at: index, output: preset.shortcut)
+                } label: {
+                    if shortcut.keyCode == preset.shortcut.keyCode {
+                        Label(preset.label, systemImage: "checkmark")
+                    } else {
+                        Text(preset.label)
+                    }
+                }
+            }
+            Divider()
+            Button("Custom key…") {
+                customOutputEditing = CustomOutputEdit(index: index)
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Text(shortcut.toString().isEmpty ? "Output" : shortcut.toString())
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .foregroundStyle(shortcut.toString().isEmpty ? Color.secondary : Color.primary)
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+            .cellStyle()
+        }
+        .menuStyle(.borderlessButton)
+        .help("Choose an output key")
+    }
+}
+
+private extension View {
+    func cellStyle() -> some View {
+        self
             .frame(minWidth: 120, alignment: .leading)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(Color(NSColor.textBackgroundColor))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 6)
-                    .stroke(Color(NSColor.separatorColor), lineWidth: 1)
-            )
+            .background(RoundedRectangle(cornerRadius: 6).fill(Color(NSColor.textBackgroundColor)))
+            .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(NSColor.separatorColor), lineWidth: 1))
             .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .help("\(placeholder): click to record a new key")
     }
 }

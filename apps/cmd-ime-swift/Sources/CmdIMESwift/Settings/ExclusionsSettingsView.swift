@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct ExclusionsSettingsView: View {
     @EnvironmentObject private var settings: AppSettings
@@ -42,7 +43,14 @@ struct ExclusionsSettingsView: View {
                 .frame(minHeight: 100)
             }
 
-            sectionHeader("Recently active")
+            HStack {
+                sectionHeader("Recently active")
+                Spacer()
+                Button("Add App…") { browseForApp() }
+                    .buttonStyle(.borderless)
+                    .font(.callout)
+                    .help("Choose any installed app to exclude")
+            }
             if recentApps.isEmpty {
                 emptyRow("Switch to another app and come back to populate this list.")
             } else {
@@ -70,6 +78,28 @@ struct ExclusionsSettingsView: View {
         }
         .onAppear { reloadRecent() }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            reloadRecent()
+        }
+    }
+
+    private func browseForApp() {
+        let panel = NSOpenPanel()
+        panel.directoryURL = URL(fileURLWithPath: "/Applications")
+        panel.allowsMultipleSelection = true
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        panel.allowedContentTypes = [UTType(filenameExtension: "app") ?? .data]
+        panel.message = "Choose apps to exclude from ⌘IME key remapping"
+        panel.prompt = "Add"
+        if panel.runModal() == .OK {
+            for url in panel.urls {
+                guard let bundle = Bundle(url: url),
+                      let id = bundle.bundleIdentifier else { continue }
+                let name = (bundle.infoDictionary?["CFBundleDisplayName"] as? String)
+                    ?? (bundle.infoDictionary?["CFBundleName"] as? String)
+                    ?? url.deletingPathExtension().lastPathComponent
+                settings.addExclusion(AppData(name: name, id: id))
+            }
             reloadRecent()
         }
     }
