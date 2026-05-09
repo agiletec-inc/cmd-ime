@@ -28,7 +28,5 @@ jobs:
         working-directory: apps/cmd-ime-swift
     steps:
       - uses: actions/checkout@v4
-      - name: Build
-        run: swift build -c release
       - name: Test
         run: swift test
