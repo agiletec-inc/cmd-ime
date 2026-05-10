@@ -1,4 +1,5 @@
 import Cocoa
+import Combine
 import Sparkle
 
 class AppDelegate: NSObject, NSApplicationDelegate {
@@ -8,18 +9,28 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var windowController: NSWindowController?
     var preferenceWindowController: PreferenceWindowController!
     let keyEvent = KeyEvent()
-    private var updaterController: SPUStandardUpdaterController!
+    var updaterController: SPUStandardUpdaterController!
+    private var cancellables = Set<AnyCancellable>()
 
     func applicationDidFinishLaunching(_ aNotification: Notification) {
         AppDelegate.shared = self
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
-        // Sparkle setup
-        updaterController = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
-
-        // Load preferences and apply them to the legacy globals KeyEvent reads.
+        // Load preferences before starting Sparkle so automaticallyChecksForUpdates
+        // reflects the user's stored preference from the first run.
         let settings = AppSettings.shared
         settings.bootstrap()
+
+        updaterController = SPUStandardUpdaterController(startingUpdater: false, updaterDelegate: nil, userDriverDelegate: nil)
+        updaterController.updater.automaticallyChecksForUpdates = settings.checkUpdateAtLaunch
+        try? updaterController.updater.start()
+
+        settings.$checkUpdateAtLaunch
+            .dropFirst()
+            .sink { [weak self] value in
+                self?.updaterController.updater.automaticallyChecksForUpdates = value
+            }
+            .store(in: &cancellables)
 
         // Initialize preference window
         preferenceWindowController = PreferenceWindowController.getInstance()
