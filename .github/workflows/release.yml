@@ -4,13 +4,16 @@
 name: Release to Homebrew
 
 on:
-  push:
-    branches:
-      - main
+  pull_request:
+    types: [closed]
+    branches: [main]
   workflow_dispatch:
 
 jobs:
   release:
+    # pull_request: run only on actual merges (not closed-without-merge)
+    # workflow_dispatch: always run (manual trigger for re-runs)
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
     runs-on: macos-latest
     permissions:
       contents: write
