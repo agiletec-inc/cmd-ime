@@ -7,17 +7,6 @@ import SwiftUI
 
 struct ShortcutsSettingsView: View {
     @EnvironmentObject private var settings: AppSettings
-    @State private var inputEditing: InputEdit?
-    @State private var customOutputEditing: CustomOutputEdit?
-
-    private struct InputEdit: Identifiable {
-        let id = UUID()
-        let index: Int
-    }
-    private struct CustomOutputEdit: Identifiable {
-        let id = UUID()
-        let index: Int
-    }
 
     // Common input keys — includes IME-only keys that can't be recorded on English keyboards.
     private static let inputPresets: [(label: String, shortcut: KeyboardShortcut)] = [
@@ -34,29 +23,28 @@ struct ShortcutsSettingsView: View {
         ("Right ⌃  (Right Control)", KeyboardShortcut(keyCode: 62)),
     ]
 
-    // Preset output options shown in the dropdown.
-    private static let outputPresets: [(label: String, shortcut: KeyboardShortcut)] = [
-        ("英数  (Alphanumeric)", KeyboardShortcut(keyCode: 102)),
-        ("かな  (Kana)", KeyboardShortcut(keyCode: 104)),
-        ("無効  (Disable key)", KeyboardShortcut(keyCode: 999)),
+    private static let actionPresets: [(label: String, shortcut: KeyboardShortcut)] = [
+        ("Switch to Alphanumeric", KeyboardShortcut(keyCode: 102)),
+        ("Switch to Kana", KeyboardShortcut(keyCode: 104)),
+        ("Disable key", KeyboardShortcut(keyCode: 999)),
     ]
 
     var body: some View {
         VStack(spacing: 8) {
-            Text("Input: choose from the preset menu or record a custom key. Output: choose from the preset menu.")
+            Text("Key: the hotkey to intercept. Action: what happens when you press it.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             List {
                 HStack(spacing: 12) {
-                    Text("Input")
+                    Text("Key")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                         .frame(minWidth: 120, alignment: .leading)
                         .padding(.horizontal, 8)
                     Spacer().frame(width: 16)
-                    Text("Output")
+                    Text("Action")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                         .frame(minWidth: 120, alignment: .leading)
@@ -69,7 +57,7 @@ struct ShortcutsSettingsView: View {
                     HStack(spacing: 12) {
                         inputCell(label: mapping.input.toString(), index: index)
                         Image(systemName: "arrow.right").foregroundStyle(.secondary)
-                        outputCell(shortcut: mapping.output, index: index)
+                        actionCell(shortcut: mapping.output, index: index)
                         Spacer()
                         Button(role: .destructive) {
                             settings.removeKeyMapping(at: index)
@@ -93,22 +81,6 @@ struct ShortcutsSettingsView: View {
                 Spacer()
             }
         }
-        .sheet(item: $inputEditing) { edit in
-            KeyRecorderSheet(
-                title: "Record Input",
-                allowModifierOnly: true,
-                initial: settings.keyMappings[edit.index].input,
-                onCommit: { settings.updateKeyMapping(at: edit.index, input: $0) }
-            )
-        }
-        .sheet(item: $customOutputEditing) { edit in
-            KeyRecorderSheet(
-                title: "Record Custom Output",
-                allowModifierOnly: false,
-                initial: settings.keyMappings[edit.index].output,
-                onCommit: { settings.updateKeyMapping(at: edit.index, output: $0) }
-            )
-        }
     }
 
     @ViewBuilder
@@ -125,10 +97,6 @@ struct ShortcutsSettingsView: View {
                     }
                 }
             }
-            Divider()
-            Button("Record custom key…") {
-                inputEditing = InputEdit(index: index)
-            }
         } label: {
             HStack(spacing: 6) {
                 Text(label.isEmpty ? "Input" : label)
@@ -141,13 +109,13 @@ struct ShortcutsSettingsView: View {
             .cellStyle()
         }
         .menuStyle(.borderlessButton)
-        .help("Choose an input key")
+        .help("Choose the hotkey to intercept")
     }
 
     @ViewBuilder
-    private func outputCell(shortcut: KeyboardShortcut, index: Int) -> some View {
+    private func actionCell(shortcut: KeyboardShortcut, index: Int) -> some View {
         Menu {
-            ForEach(Self.outputPresets, id: \.label) { preset in
+            ForEach(Self.actionPresets, id: \.label) { preset in
                 Button {
                     settings.updateKeyMapping(at: index, output: preset.shortcut)
                 } label: {
@@ -158,15 +126,11 @@ struct ShortcutsSettingsView: View {
                     }
                 }
             }
-            Divider()
-            Button("Custom key…") {
-                customOutputEditing = CustomOutputEdit(index: index)
-            }
         } label: {
             HStack(spacing: 6) {
-                Text(shortcut.toString().isEmpty ? "Output" : shortcut.toString())
+                Text(actionLabel(for: shortcut))
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .foregroundStyle(shortcut.toString().isEmpty ? Color.secondary : Color.primary)
+                    .foregroundStyle(shortcut.keyCode == 0 ? Color.secondary : Color.primary)
                 Image(systemName: "chevron.up.chevron.down")
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
@@ -174,7 +138,12 @@ struct ShortcutsSettingsView: View {
             .cellStyle()
         }
         .menuStyle(.borderlessButton)
-        .help("Choose an output key")
+        .help("Choose what happens when this key is pressed")
+    }
+
+    private func actionLabel(for shortcut: KeyboardShortcut) -> String {
+        Self.actionPresets.first(where: { $0.shortcut.keyCode == shortcut.keyCode })?.label
+            ?? (shortcut.toString().isEmpty ? "Action" : shortcut.toString())
     }
 }
 
