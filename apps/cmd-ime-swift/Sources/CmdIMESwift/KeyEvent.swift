@@ -188,13 +188,6 @@ class KeyEvent: NSObject {
         tapHeartbeat = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
             self?.reenableTapIfNeeded()
         }
-
-        NSWorkspace.shared.notificationCenter.addObserver(
-            self,
-            selector: #selector(reenableTapIfNeeded),
-            name: NSWorkspace.didActivateApplicationNotification,
-            object: nil
-        )
     }
 
     @objc private func reenableTapIfNeeded() {
