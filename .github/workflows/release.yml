@@ -227,31 +227,30 @@ jobs:
           BUILD_NUMBER=$(git rev-parse --short HEAD)
           PUB_DATE=$(date -u "+%a, %d %b %Y %H:%M:%S +0000")
 
-          cat > /tmp/update_appcast.py << 'PYEOF'
-import sys
-version, sig, zip_size, build_number, pub_date = sys.argv[1:]
-new_item = (
-    "        <item>\n"
-    f"            <title>Version {version}</title>\n"
-    f"            <pubDate>{pub_date}</pubDate>\n"
-    f"            <sparkle:version>{build_number}</sparkle:version>\n"
-    f"            <sparkle:shortVersionString>{version}</sparkle:shortVersionString>\n"
-    "            <enclosure\n"
-    f"                url=\"https://github.com/agiletec-inc/cmd-ime/releases/download/v{version}/cmd-ime-{version}.zip\"\n"
-    f"                sparkle:edSignature=\"{sig}\"\n"
-    f"                length=\"{zip_size}\"\n"
-    "                type=\"application/zip\" />\n"
-    "        </item>\n"
-)
-with open("appcast.xml") as f:
-    content = f.read()
-content = content.replace("    </channel>", new_item + "    </channel>")
-with open("appcast.xml", "w") as f:
-    f.write(content)
-print("appcast.xml updated")
-PYEOF
+          awk \
+            -v ver="$VERSION" \
+            -v sig="$SIG" \
+            -v size="$ZIP_SIZE" \
+            -v build="$BUILD_NUMBER" \
+            -v date="$PUB_DATE" \
+            '/    <\/channel>/ {
+              printf "        <item>\n"
+              printf "            <title>Version %s</title>\n", ver
+              printf "            <pubDate>%s</pubDate>\n", date
+              printf "            <sparkle:version>%s</sparkle:version>\n", build
+              printf "            <sparkle:shortVersionString>%s</sparkle:shortVersionString>\n", ver
+              printf "            <enclosure\n"
+              printf "                url=\"https://github.com/agiletec-inc/cmd-ime/releases/download/v%s/cmd-ime-%s.zip\"\n", ver, ver
+              printf "                sparkle:edSignature=\"%s\"\n", sig
+              printf "                length=\"%s\"\n", size
+              printf "                type=\"application/zip\" />\n"
+              printf "        </item>\n"
+            }
+            { print }' \
+            appcast.xml > /tmp/appcast_new.xml
 
-          python3 /tmp/update_appcast.py "$VERSION" "$SIG" "$ZIP_SIZE" "$BUILD_NUMBER" "$PUB_DATE"
+          mv /tmp/appcast_new.xml appcast.xml
+          echo "✅ appcast.xml updated"
           cat appcast.xml
 
       - name: Create GitHub Release
