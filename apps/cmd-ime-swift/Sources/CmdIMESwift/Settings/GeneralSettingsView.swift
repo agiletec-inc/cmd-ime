@@ -38,15 +38,25 @@ struct GeneralSettingsView: View {
                 }
             }
 
-            Section {
-                Toggle(isOn: $settings.autoSwitching) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Smart input switching")
-                        Text("Restores per-app input source on switch. Auto-switches to alphanumeric in URL bars. (Beta)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+            Section("Input Switching") {
+                Picker("Mode", selection: $settings.switchingMode) {
+                    Text("Off").tag(AppSettings.SwitchingMode.global)
+                    Text("Per app").tag(AppSettings.SwitchingMode.perApp)
+                    Text("Smart").tag(AppSettings.SwitchingMode.smart)
+                }
+                .pickerStyle(.segmented)
+                Group {
+                    switch settings.switchingMode {
+                    case .global:
+                        Text("No automatic switching. Input source stays as-is when you switch apps.")
+                    case .perApp:
+                        Text("Remembers and restores the input source for each app when you switch.")
+                    case .smart:
+                        Text("Per-app memory plus auto-switch to alphanumeric in URL bars, phone, email, and ZIP fields. (Beta)")
                     }
                 }
+                .font(.caption)
+                .foregroundStyle(.secondary)
             }
 
             Section("About") {
