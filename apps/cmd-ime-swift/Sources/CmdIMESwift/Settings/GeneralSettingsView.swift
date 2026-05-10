@@ -7,7 +7,6 @@ import SwiftUI
 
 struct GeneralSettingsView: View {
     @EnvironmentObject private var settings: AppSettings
-    @State private var isCheckingForUpdates = false
 
     private var version: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0.0"
@@ -23,16 +22,9 @@ struct GeneralSettingsView: View {
             Section {
                 Toggle("Check for updates on launch", isOn: $settings.checkUpdateAtLaunch)
                 HStack {
-                    Button {
-                        runManualUpdateCheck()
-                    } label: {
-                        if isCheckingForUpdates {
-                            ProgressView().controlSize(.small)
-                        } else {
-                            Text("Check Now")
-                        }
+                    Button("Check Now") {
+                        (NSApp.delegate as? AppDelegate)?.updaterController.updater.checkForUpdates()
                     }
-                    .disabled(isCheckingForUpdates)
                     Spacer()
                     Text("Version \(version)").foregroundStyle(.secondary)
                 }
@@ -78,10 +70,4 @@ struct GeneralSettingsView: View {
         .formStyle(.grouped)
     }
 
-    private func runManualUpdateCheck() {
-        isCheckingForUpdates = true
-        checkUpdate(manual: true) { _ in
-            isCheckingForUpdates = false
-        }
-    }
 }

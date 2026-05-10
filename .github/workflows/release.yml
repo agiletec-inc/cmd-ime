@@ -134,18 +134,22 @@ jobs:
             echo "::warning::bundle is ad-hoc signed; expected because CMDIME_SIGNING_CERT_P12_BASE64 is not set"
           fi
 
-      - name: Create DMG
+      - name: Create DMG and ZIP
         if: steps.check_tag.outputs.exists == 'false'
         run: |
           VERSION=${{steps.version.outputs.version}}
 
-          # Create DMG using hdiutil
+          # DMG for Homebrew cask (browser download)
           hdiutil create -volname "CmdIME" \
             -srcfolder "release/CmdIME.app" \
             -ov -format UDZO \
             "cmd-ime-${VERSION}.dmg"
 
+          # ZIP for Sparkle in-app "Install and Relaunch"
+          ditto -c -k --keepParent "release/CmdIME.app" "cmd-ime-${VERSION}.zip"
+
           echo "✅ DMG created: cmd-ime-${VERSION}.dmg"
+          echo "✅ ZIP created: cmd-ime-${VERSION}.zip"
 
       - name: Check notarization availability
         if: steps.check_tag.outputs.exists == 'false'
@@ -190,6 +194,66 @@ jobs:
           echo "sha256=$SHA256" >> $GITHUB_OUTPUT
           echo "🔐 SHA256: $SHA256"
 
+      - name: Sign ZIP for Sparkle
+        if: steps.check_tag.outputs.exists == 'false'
+        id: sparkle
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.CMDIME_SPARKLE_PRIVATE_ED_KEY }}
+        run: |
+          set -euo pipefail
+          VERSION=${{ steps.version.outputs.version }}
+          ZIP_PATH="cmd-ime-${VERSION}.zip"
+          SIGN_UPDATE="apps/cmd-ime-swift/.build/artifacts/sparkle/Sparkle/bin/sign_update"
+
+          echo "$SPARKLE_PRIVATE_KEY" > /tmp/sparkle-ed-key.pem
+          SIG=$("$SIGN_UPDATE" "$ZIP_PATH" -f /tmp/sparkle-ed-key.pem \
+            | grep -o 'sparkle:edSignature="[^"]*"' \
+            | cut -d'"' -f2)
+          rm -f /tmp/sparkle-ed-key.pem
+
+          ZIP_SIZE=$(wc -c < "$ZIP_PATH" | tr -d '[:space:]')
+          echo "edSignature=$SIG" >> $GITHUB_OUTPUT
+          echo "zipSize=$ZIP_SIZE" >> $GITHUB_OUTPUT
+          echo "🔐 EdDSA signature: $SIG"
+          echo "📦 ZIP size: ${ZIP_SIZE} bytes"
+
+      - name: Update appcast.xml
+        if: steps.check_tag.outputs.exists == 'false'
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          SIG="${{ steps.sparkle.outputs.edSignature }}"
+          ZIP_SIZE="${{ steps.sparkle.outputs.zipSize }}"
+          BUILD_NUMBER=$(git rev-parse --short HEAD)
+          PUB_DATE=$(date -u "+%a, %d %b %Y %H:%M:%S +0000")
+
+          cat > /tmp/update_appcast.py << 'PYEOF'
+import sys
+version, sig, zip_size, build_number, pub_date = sys.argv[1:]
+new_item = (
+    "        <item>\n"
+    f"            <title>Version {version}</title>\n"
+    f"            <pubDate>{pub_date}</pubDate>\n"
+    f"            <sparkle:version>{build_number}</sparkle:version>\n"
+    f"            <sparkle:shortVersionString>{version}</sparkle:shortVersionString>\n"
+    "            <enclosure\n"
+    f"                url=\"https://github.com/agiletec-inc/cmd-ime/releases/download/v{version}/cmd-ime-{version}.zip\"\n"
+    f"                sparkle:edSignature=\"{sig}\"\n"
+    f"                length=\"{zip_size}\"\n"
+    "                type=\"application/zip\" />\n"
+    "        </item>\n"
+)
+with open("appcast.xml") as f:
+    content = f.read()
+content = content.replace("    </channel>", new_item + "    </channel>")
+with open("appcast.xml", "w") as f:
+    f.write(content)
+print("appcast.xml updated")
+PYEOF
+
+          python3 /tmp/update_appcast.py "$VERSION" "$SIG" "$ZIP_SIZE" "$BUILD_NUMBER" "$PUB_DATE"
+          cat appcast.xml
+
       - name: Create GitHub Release
         if: steps.check_tag.outputs.exists == 'false'
         env:
@@ -202,9 +266,27 @@ jobs:
           gh release create "v${VERSION}" \
             --title "Release v${VERSION}" \
             --generate-notes \
-            "cmd-ime-${VERSION}.dmg"
+            "cmd-ime-${VERSION}.dmg" \
+            "cmd-ime-${VERSION}.zip"
 
           echo "✅ Release v${VERSION} created successfully!"
+
+      - name: Commit and push appcast.xml
+        if: steps.check_tag.outputs.exists == 'false'
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add appcast.xml
+          if git diff --cached --quiet; then
+            echo "No changes to appcast.xml"
+          else
+            git commit -m "chore: update appcast.xml for v${VERSION} [skip ci]"
+            git push origin main
+          fi
 
       # Mint a 1-hour GitHub App installation token instead of using a
       # static PAT. The `agiletec-inc-homebrew-publisher` App is installed
