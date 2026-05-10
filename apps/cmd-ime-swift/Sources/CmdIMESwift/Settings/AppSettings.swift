@@ -17,6 +17,12 @@ import SwiftUI
 final class AppSettings: ObservableObject {
     static let shared = AppSettings()
 
+    enum SwitchingMode: Int {
+        case global = 0   // no automatic switching
+        case perApp = 1   // remember input source per app
+        case smart = 2    // perApp + context-aware field detection
+    }
+
     enum Keys {
         static let launchAtStartup = "launchAtStartup"
         static let legacyLaunchAtStartup = "lunchAtStartup"
@@ -25,7 +31,8 @@ final class AppSettings: ObservableObject {
         static let legacyCheckUpdateAtLaunch = "checkUpdateAtlaunch"
         static let keyMappings = "mappings"
         static let exclusionApps = "exclusionApps"
-        static let autoSwitching = "autoSwitching"
+        static let switchingMode = "switchingMode"
+        static let legacyAutoSwitching = "autoSwitching"
     }
 
     private let defaults: UserDefaults
@@ -35,7 +42,7 @@ final class AppSettings: ObservableObject {
     @Published var checkUpdateAtLaunch: Bool
     @Published var keyMappings: [KeyMapping]
     @Published var exclusionApps: [AppData]
-    @Published var autoSwitching: Bool
+    @Published var switchingMode: SwitchingMode
 
     private var cancellables: Set<AnyCancellable> = []
     private var isApplyingExternalUpdate = false
@@ -54,7 +61,7 @@ final class AppSettings: ObservableObject {
 
         self.keyMappings = Self.loadKeyMappings(from: defaults)
         self.exclusionApps = Self.loadExclusionApps(from: defaults)
-        self.autoSwitching = (defaults.object(forKey: Keys.autoSwitching) as? Int ?? 0) != 0
+        self.switchingMode = Self.loadSwitchingMode(from: defaults)
 
         publishGlobalsFromState()
         observePropertyChanges()
@@ -160,10 +167,10 @@ final class AppSettings: ObservableObject {
             }
             .store(in: &cancellables)
 
-        $autoSwitching
+        $switchingMode
             .dropFirst()
             .sink { [weak self] newValue in
-                self?.defaults.set(newValue ? 1 : 0, forKey: Keys.autoSwitching)
+                self?.defaults.set(newValue.rawValue, forKey: Keys.switchingMode)
             }
             .store(in: &cancellables)
     }
@@ -186,6 +193,18 @@ final class AppSettings: ObservableObject {
             defaults.set(legacy, forKey: Keys.checkUpdateAtLaunch)
             defaults.removeObject(forKey: Keys.legacyCheckUpdateAtLaunch)
         }
+        // autoSwitching (Bool) → switchingMode (Int): true maps to .smart
+        if defaults.object(forKey: Keys.switchingMode) == nil {
+            let old = (defaults.object(forKey: Keys.legacyAutoSwitching) as? Int ?? 0) != 0
+            defaults.set(old ? SwitchingMode.smart.rawValue : SwitchingMode.global.rawValue,
+                         forKey: Keys.switchingMode)
+            defaults.removeObject(forKey: Keys.legacyAutoSwitching)
+        }
+    }
+
+    private static func loadSwitchingMode(from defaults: UserDefaults) -> SwitchingMode {
+        let raw = defaults.object(forKey: Keys.switchingMode) as? Int ?? SwitchingMode.global.rawValue
+        return SwitchingMode(rawValue: raw) ?? .global
     }
 
     private static func loadKeyMappings(from defaults: UserDefaults) -> [KeyMapping] {

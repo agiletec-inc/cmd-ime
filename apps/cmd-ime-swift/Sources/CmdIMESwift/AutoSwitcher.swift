@@ -1,3 +1,8 @@
+//
+//  AutoSwitcher.swift
+//  ⌘IME
+//
+
 import Cocoa
 import Carbon.HIToolbox
 
@@ -10,55 +15,51 @@ final class AutoSwitcher {
     private var perAppSource: [String: String] = [:]
     private var currentAppID: String = ""
 
-    // When in a URL field, this holds the source to restore on exit.
-    private var savedBeforeURLField: String?
+    // When in an auto-switch field, this holds the source to restore on exit.
+    private var savedBeforeAutoField: String?
 
     private var pollTimer: Timer?
 
     // Call once on app launch; timer runs forever but is a no-op when disabled.
     func start() {
         pollTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
-            // Timer callbacks aren't @MainActor, but AutoSwitcher is always on main
-            // thread and this timer is scheduled on the main RunLoop.
             MainActor.assumeIsolated { self?.tick() }
         }
     }
 
     // Called by KeyEvent.setActiveApp on every app switch.
     func handleAppActivation(bundleID: String, pid: pid_t) {
-        guard AppSettings.shared.autoSwitching else { return }
+        let mode = AppSettings.shared.switchingMode
+        guard mode == .perApp || mode == .smart else { return }
         guard bundleID != currentAppID else { return }
 
-        // Save current source for the outgoing app.
         if !currentAppID.isEmpty {
             perAppSource[currentAppID] = currentInputSourceID()
         }
 
-        // Restore remembered source for the incoming app.
         if let saved = perAppSource[bundleID] {
             selectInputSource(id: saved)
         }
 
         currentAppID = bundleID
-        savedBeforeURLField = nil
+        savedBeforeAutoField = nil
     }
 
-    // MARK: - URL field polling
+    // MARK: - Field polling (smart mode only)
 
     private func tick() {
-        guard AppSettings.shared.autoSwitching else {
-            // Feature disabled: clear any outstanding URL field state.
-            if savedBeforeURLField != nil { restoreFromURLField() }
+        guard AppSettings.shared.switchingMode == .smart else {
+            if savedBeforeAutoField != nil { restoreFromAutoField() }
             return
         }
-        checkURLField()
+        checkSmartField()
     }
 
-    private func checkURLField() {
+    private func checkSmartField() {
         guard let app = NSWorkspace.shared.frontmostApplication,
               let bundleID = app.bundleIdentifier,
               exclusionAppsDict[bundleID] == nil else {
-            restoreFromURLField()
+            restoreFromAutoField()
             return
         }
 
@@ -67,35 +68,54 @@ final class AutoSwitcher {
         guard AXUIElementCopyAttributeValue(
             appElement, kAXFocusedUIElementAttribute as CFString, &focusedRef
         ) == .success, let focused = focusedRef else {
-            restoreFromURLField()
+            restoreFromAutoField()
             return
         }
 
         // swiftlint:disable:next force_cast
-        if isURLTextField(focused as! AXUIElement) {
-            if savedBeforeURLField == nil {
-                savedBeforeURLField = currentInputSourceID()
+        if isASCIIOnlyField(focused as! AXUIElement) {
+            if savedBeforeAutoField == nil {
+                savedBeforeAutoField = currentInputSourceID()
                 selectASCIICapable()
             }
         } else {
-            restoreFromURLField()
+            restoreFromAutoField()
         }
     }
 
-    private func restoreFromURLField() {
-        guard let saved = savedBeforeURLField else { return }
+    private func restoreFromAutoField() {
+        guard let saved = savedBeforeAutoField else { return }
         selectInputSource(id: saved)
-        savedBeforeURLField = nil
+        savedBeforeAutoField = nil
     }
 
-    // MARK: - URL field detection
+    // MARK: - ASCII-only field detection
 
-    private func isURLTextField(_ element: AXUIElement) -> Bool {
+    private func isASCIIOnlyField(_ element: AXUIElement) -> Bool {
         var roleRef: AnyObject?
         guard AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &roleRef) == .success,
-              (roleRef as? String) == kAXTextFieldRole else { return false }
+              let role = roleRef as? String else { return false }
 
-        // Check description and identifier for browser URL bar hints.
+        // URL bars in browsers
+        if role == (kAXTextFieldRole as String) && isURLTextField(element) { return true }
+
+        // Only inspect text fields and combo boxes further
+        guard role == (kAXTextFieldRole as String) || role == (kAXComboBoxRole as String) else { return false }
+
+        let asciiHints = ["url", "address", "location", "phone", "tel", "email",
+                          "zip", "postal", "number", "numeric", "code", "pin", "otp"]
+        for attr in [kAXDescriptionAttribute, kAXIdentifierAttribute,
+                     kAXPlaceholderValueAttribute, kAXTitleUIElementAttribute] as [String] {
+            var ref: AnyObject?
+            guard AXUIElementCopyAttributeValue(element, attr as CFString, &ref) == .success,
+                  let str = ref as? String else { continue }
+            let lower = str.lowercased()
+            if asciiHints.contains(where: { lower.contains($0) }) { return true }
+        }
+        return false
+    }
+
+    private func isURLTextField(_ element: AXUIElement) -> Bool {
         for attr in [kAXDescriptionAttribute, kAXIdentifierAttribute] as [String] {
             var ref: AnyObject?
             guard AXUIElementCopyAttributeValue(element, attr as CFString, &ref) == .success,

@@ -19,9 +19,22 @@ struct ShortcutsSettingsView: View {
         let index: Int
     }
 
+    // Common input keys — includes IME-only keys that can't be recorded on English keyboards.
+    private static let inputPresets: [(label: String, shortcut: KeyboardShortcut)] = [
+        ("Left ⌘  (Left Command)", KeyboardShortcut(keyCode: 55)),
+        ("Right ⌘  (Right Command)", KeyboardShortcut(keyCode: 54)),
+        ("英数  (Eisu / Alphanumeric)", KeyboardShortcut(keyCode: 102)),
+        ("かな  (Kana)", KeyboardShortcut(keyCode: 104)),
+        ("⇪  (Caps Lock)", KeyboardShortcut(keyCode: 57)),
+        ("Left ⇧  (Left Shift)", KeyboardShortcut(keyCode: 56)),
+        ("Right ⇧  (Right Shift)", KeyboardShortcut(keyCode: 60)),
+        ("Left ⌥  (Left Option)", KeyboardShortcut(keyCode: 58)),
+        ("Right ⌥  (Right Option)", KeyboardShortcut(keyCode: 61)),
+        ("Left ⌃  (Left Control)", KeyboardShortcut(keyCode: 59)),
+        ("Right ⌃  (Right Control)", KeyboardShortcut(keyCode: 62)),
+    ]
+
     // Preset output options shown in the dropdown.
-    // IME virtual keys (英数/かな) can't be pressed physically on most keyboards,
-    // so the output field uses a picker instead of a key recorder.
     private static let outputPresets: [(label: String, shortcut: KeyboardShortcut)] = [
         ("英数  (Alphanumeric)", KeyboardShortcut(keyCode: 102)),
         ("かな  (Kana)", KeyboardShortcut(keyCode: 104)),
@@ -30,7 +43,7 @@ struct ShortcutsSettingsView: View {
 
     var body: some View {
         VStack(spacing: 8) {
-            Text("Input: click to record a modifier key (e.g. left ⌘). Output: choose from the preset menu.")
+            Text("Input: choose from the preset menu or record a custom key. Output: choose from the preset menu.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -100,21 +113,35 @@ struct ShortcutsSettingsView: View {
 
     @ViewBuilder
     private func inputCell(label: String, index: Int) -> some View {
-        Button {
-            inputEditing = InputEdit(index: index)
+        Menu {
+            ForEach(Self.inputPresets, id: \.label) { preset in
+                Button {
+                    settings.updateKeyMapping(at: index, input: preset.shortcut)
+                } label: {
+                    if label == preset.shortcut.toString() {
+                        Label(preset.label, systemImage: "checkmark")
+                    } else {
+                        Text(preset.label)
+                    }
+                }
+            }
+            Divider()
+            Button("Record custom key…") {
+                inputEditing = InputEdit(index: index)
+            }
         } label: {
             HStack(spacing: 6) {
                 Text(label.isEmpty ? "Input" : label)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .foregroundStyle(label.isEmpty ? Color.secondary : Color.primary)
-                Image(systemName: "square.and.pencil")
-                    .font(.caption)
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.caption2)
                     .foregroundStyle(.tertiary)
             }
             .cellStyle()
         }
-        .buttonStyle(.plain)
-        .help("Click to record a new input key")
+        .menuStyle(.borderlessButton)
+        .help("Choose an input key")
     }
 
     @ViewBuilder
