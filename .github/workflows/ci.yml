@@ -7,12 +7,6 @@ on:
       - '*.md'
       - 'appcast.xml'
       - '.github/ISSUE_TEMPLATE/**'
-  push:
-    branches: [main]
-    paths-ignore:
-      - '*.md'
-      - 'appcast.xml'
-      - '.github/ISSUE_TEMPLATE/**'
   workflow_dispatch:
 
 concurrency:
@@ -23,10 +17,19 @@ jobs:
   ci:
     runs-on: macos-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
     defaults:
       run:
         working-directory: apps/cmd-ime-swift
     steps:
       - uses: actions/checkout@v4
+      - name: Cache Swift build
+        uses: actions/cache@v4
+        with:
+          path: apps/cmd-ime-swift/.build
+          key: ${{ runner.os }}-spm-${{ hashFiles('apps/cmd-ime-swift/Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-spm-
       - name: Test
         run: swift test

@@ -28,6 +28,7 @@ class KeyEvent: NSObject {
     private var tapRetryAttempts = 0
     private var tapObserver: Unmanaged<KeyEvent>?
     private var tapHeartbeat: Timer?
+    private var nsEventMonitors: [Any] = []
 
     override init() {
         super.init()
@@ -36,6 +37,7 @@ class KeyEvent: NSObject {
     deinit {
         tapHeartbeat?.invalidate()
         tapObserver?.release()
+        nsEventMonitors.forEach { NSEvent.removeMonitor($0) }
         NSWorkspace.shared.notificationCenter.removeObserver(self)
     }
 
@@ -107,14 +109,14 @@ class KeyEvent: NSObject {
             .scrollWheel
         ]
 
-        NSEvent.addGlobalMonitorForEvents(matching: nsEventMaskList) {(_: NSEvent) in
-            self.keyCode = nil
-        }
+        if let m = NSEvent.addGlobalMonitorForEvents(matching: nsEventMaskList, handler: { [weak self] _ in
+            self?.keyCode = nil
+        }) { nsEventMonitors.append(m) }
 
-        NSEvent.addLocalMonitorForEvents(matching: nsEventMaskList) {(event: NSEvent) -> NSEvent? in
-            self.keyCode = nil
+        if let m = NSEvent.addLocalMonitorForEvents(matching: nsEventMaskList, handler: { [weak self] event in
+            self?.keyCode = nil
             return event
-        }
+        }) { nsEventMonitors.append(m) }
 
         // CGEvent tap can run on main thread's RunLoop since NSApplication.run() handles it
         setupCGEventTap()
@@ -234,10 +236,10 @@ class KeyEvent: NSObject {
         case CGEventType.flagsChanged:
             let keyCode = CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode))
 
-            if modifierMasks[keyCode] == nil {
+            guard let mask = modifierMasks[keyCode] else {
                 return Unmanaged.passRetained(event)
             }
-            return event.flags.rawValue & modifierMasks[keyCode]!.rawValue != 0 ?
+            return event.flags.rawValue & mask.rawValue != 0 ?
                 modifierKeyDown(event) : modifierKeyUp(event)
 
         case CGEventType.keyDown:
@@ -335,7 +337,7 @@ class KeyEvent: NSObject {
         let lookupKey = keyCode ?? shortcut.keyCode
         guard let mappingList = shortcutList[lookupKey] else { return nil }
 
-        for mapping in mappingList where shortcut.isCover(mapping.input) {
+        for mapping in mappingList where mapping.enable && shortcut.isCover(mapping.input) {
             return mapping
         }
         return nil
@@ -353,12 +355,10 @@ class KeyEvent: NSObject {
             ev.flags = flags
         }
 
-        let shortcut = KeyboardShortcut(ev)
         ev.setIntegerValueField(.keyboardEventKeycode, value: Int64(mapping.output.keyCode))
         ev.flags = CGEventFlags(
             rawValue: (ev.flags.rawValue & ~mapping.input.flags.rawValue) | mapping.output.flags.rawValue
         )
-        _ = shortcut  // suppress unused warning; shortcut was used for isCover check in findMapping
         return .remap(ev)
     }
 }

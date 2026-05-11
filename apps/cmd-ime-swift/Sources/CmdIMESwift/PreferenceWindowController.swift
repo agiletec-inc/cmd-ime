@@ -34,6 +34,10 @@ final class PreferenceWindowController: NSWindowController, NSWindowDelegate {
     func showAndActivate(_ sender: AnyObject?) {
         showWindow(sender)
         window?.makeKeyAndOrderFront(sender)
-        NSApp.activate(ignoringOtherApps: true)
+        if #available(macOS 14.0, *) {
+            NSApp.activate()
+        } else {
+            NSApp.activate(ignoringOtherApps: true)
+        }
     }
 }

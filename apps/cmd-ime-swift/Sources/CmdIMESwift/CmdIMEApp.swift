@@ -11,6 +11,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     let keyEvent = KeyEvent()
     var updaterController: SPUStandardUpdaterController!
     private var cancellables = Set<AnyCancellable>()
+    private var bundleWatcher: BundleWatcher?
 
     func applicationDidFinishLaunching(_ aNotification: Notification) {
         AppDelegate.shared = self
@@ -62,6 +63,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         MainActor.assumeIsolated { AutoSwitcher.shared.start() }
         keyEvent.start()
+
+        bundleWatcher = BundleWatcher()
+        bundleWatcher?.start {
+            let url = URL(fileURLWithPath: Bundle.main.bundlePath)
+            let task = Process()
+            task.launchPath = "/usr/bin/open"
+            task.arguments = [url.path]
+            do { try task.run() } catch {}
+            NSApplication.shared.terminate(nil)
+        }
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
@@ -78,7 +89,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let task = Process()
         task.launchPath = "/usr/bin/open"
         task.arguments = [url.path]
-        task.launch()
+        do { try task.run() } catch { NSLog("⌘IME: restart failed: %@", error.localizedDescription) }
         NSApplication.shared.terminate(self)
     }
 
