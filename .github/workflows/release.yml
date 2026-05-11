@@ -15,6 +15,7 @@ jobs:
     # workflow_dispatch: always run (manual trigger for re-runs)
     if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
     runs-on: macos-latest
+    timeout-minutes: 45
     permissions:
       contents: write
     steps:
@@ -145,22 +146,17 @@ jobs:
             echo "::warning::bundle is ad-hoc signed; expected because CMDIME_SIGNING_CERT_P12_BASE64 is not set"
           fi
 
-      - name: Create DMG and ZIP
+      - name: Create DMG
         if: steps.check_tag.outputs.exists == 'false'
         run: |
           VERSION=${{steps.version.outputs.version}}
 
-          # DMG for Homebrew cask (browser download)
           hdiutil create -volname "CmdIME" \
             -srcfolder "release/CmdIME.app" \
             -ov -format UDZO \
             "cmd-ime-${VERSION}.dmg"
 
-          # ZIP for Sparkle in-app "Install and Relaunch"
-          ditto -c -k --keepParent "release/CmdIME.app" "cmd-ime-${VERSION}.zip"
-
           echo "✅ DMG created: cmd-ime-${VERSION}.dmg"
-          echo "✅ ZIP created: cmd-ime-${VERSION}.zip"
 
       - name: Check notarization availability
         if: steps.check_tag.outputs.exists == 'false'
@@ -196,6 +192,16 @@ jobs:
           xcrun stapler staple "$DMG_PATH"
           xcrun stapler staple "release/CmdIME.app"
 
+      - name: Create ZIP
+        if: steps.check_tag.outputs.exists == 'false'
+        run: |
+          VERSION=${{steps.version.outputs.version}}
+
+          # Create ZIP after notarization so stapled ticket is included in the Sparkle distribution
+          ditto -c -k --keepParent "release/CmdIME.app" "cmd-ime-${VERSION}.zip"
+
+          echo "✅ ZIP created: cmd-ime-${VERSION}.zip"
+
       - name: Calculate SHA256
         if: steps.check_tag.outputs.exists == 'false'
         id: sha256
@@ -216,11 +222,21 @@ jobs:
           ZIP_PATH="cmd-ime-${VERSION}.zip"
           SIGN_UPDATE="apps/cmd-ime-swift/.build/artifacts/sparkle/Sparkle/bin/sign_update"
 
+          if [ -z "$SPARKLE_PRIVATE_KEY" ]; then
+            echo "::error::CMDIME_SPARKLE_PRIVATE_ED_KEY is not set — in-app updates will be broken"
+            exit 1
+          fi
+
+          trap 'rm -f /tmp/sparkle-ed-key.pem' EXIT
           echo "$SPARKLE_PRIVATE_KEY" > /tmp/sparkle-ed-key.pem
           SIG=$("$SIGN_UPDATE" "$ZIP_PATH" -f /tmp/sparkle-ed-key.pem \
             | grep -o 'sparkle:edSignature="[^"]*"' \
             | cut -d'"' -f2)
-          rm -f /tmp/sparkle-ed-key.pem
+
+          if [ -z "$SIG" ]; then
+            echo "::error::sign_update returned empty signature — check CMDIME_SPARKLE_PRIVATE_ED_KEY"
+            exit 1
+          fi
 
           ZIP_SIZE=$(wc -c < "$ZIP_PATH" | tr -d '[:space:]')
           echo "edSignature=$SIG" >> $GITHUB_OUTPUT
@@ -235,7 +251,7 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           SIG="${{ steps.sparkle.outputs.edSignature }}"
           ZIP_SIZE="${{ steps.sparkle.outputs.zipSize }}"
-          BUILD_NUMBER=$(git rev-parse --short HEAD)
+          BUILD_NUMBER=$(echo "$VERSION" | awk -F. '{printf "%d%02d%02d", $1, $2, $3}')
           PUB_DATE=$(date -u "+%a, %d %b %Y %H:%M:%S +0000")
 
           awk \

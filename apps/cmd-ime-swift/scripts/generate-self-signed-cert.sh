@@ -8,27 +8,24 @@ set -euo pipefail
 IDENTITY_NAME="CmdIME Self-Signed Publisher"
 OUT_P12="cmdime-signing.p12"
 PASSWORD=$(openssl rand -base64 12)
+KEYCHAIN="tmp.keychain"
 
 echo ">> Generating self-signed certificate for: $IDENTITY_NAME"
 
-# Create a temporary keychain
-KEYCHAIN="tmp.keychain"
+# Ensure cleanup on exit (success or failure)
+trap 'security delete-keychain "$KEYCHAIN" 2>/dev/null; rm -f key.pem cert.pem' EXIT
+
+# Create a temporary keychain (used by codesign when importing below)
 security create-keychain -p "" "$KEYCHAIN"
 
-# Generate the self-signed certificate in the temporary keychain
-# Using 'create-self-signed-certificate' (available in macOS)
-# Note: In modern macOS, 'security' command might not have a direct one-liner
-# for this that works headlessly easily. Let's use openssl and then import.
-
-openssl req -x509 -newkey rsa:2048 -keyout key.pem -out cert.pem -days 3650 -nodes \
+# Generate EC P-256 certificate (Apple recommends EC over RSA 2048 for code signing)
+openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 \
+    -keyout key.pem -out cert.pem -days 3650 -nodes \
     -subj "/CN=$IDENTITY_NAME"
 
 # Combine into P12
 openssl pkcs12 -export -out "$OUT_P12" -inkey key.pem -in cert.pem \
     -name "$IDENTITY_NAME" -passout "pass:$PASSWORD"
-
-# Cleanup
-rm key.pem cert.pem
 
 echo "----------------------------------------------------------"
 echo "Success! Generated: $OUT_P12"
