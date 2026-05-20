@@ -101,6 +101,9 @@ The tap can be disabled by macOS (e.g., on input-source change). `KeyEvent` hand
 2. Open a PR and merge to `main` → CI (`release.yml`) triggers on PR merge and detects the new version tag does not exist
 3. CI runs `scripts/package.sh` (builds, signs, bundles `CmdIME.app`)
 4. Creates DMG, optionally notarizes, creates GitHub Release
-5. Updates `agiletec-inc/homebrew-tap` Casks/cmd-ime.rb via squash-merged PR
+5. Appends the release entry to `appcast.xml` and force-pushes it to the dedicated `appcast` branch
+6. Updates `agiletec-inc/homebrew-tap` Casks/cmd-ime.rb via squash-merged PR
 
-The Sparkle auto-update feed is at `appcast.xml` on the `main` branch (referenced in `Info.plist` via `SUFeedURL`).
+The Sparkle auto-update feed lives on the dedicated `appcast` branch, served via its
+raw URL (`SUFeedURL` in `Info.plist`). Each release appends an `<item>`; the in-repo
+`appcast.xml` on `main` is only the empty seed template.

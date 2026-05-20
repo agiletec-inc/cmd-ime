@@ -254,6 +254,16 @@ jobs:
           BUILD_NUMBER=$(echo "$VERSION" | awk -F. '{printf "%d%02d%02d", $1, $2, $3}')
           PUB_DATE=$(date -u "+%a, %d %b %Y %H:%M:%S +0000")
 
+          # Base the appcast off the accumulated copy on the `appcast` branch so
+          # every release entry is preserved. The first run (branch absent) falls
+          # back to the in-repo template, which carries an empty <channel>.
+          if git fetch origin appcast 2>/dev/null; then
+            git show FETCH_HEAD:appcast.xml > appcast.xml
+            echo "📥 Loaded accumulated appcast from the appcast branch"
+          else
+            echo "📄 appcast branch not found — seeding from the in-repo template"
+          fi
+
           awk \
             -v ver="$VERSION" \
             -v sig="$SIG" \
@@ -297,6 +307,37 @@ jobs:
             "appcast.xml"
 
           echo "✅ Release v${VERSION} created successfully!"
+
+      # Publish the accumulated appcast to a dedicated, unprotected `appcast`
+      # branch. SUFeedURL points at this branch's raw URL, so the feed no longer
+      # depends on the `latest` release staying in place, and every release's
+      # <item> is retained for version history and Sparkle delta generation.
+      # Runs after the release exists because the <enclosure> URL references the
+      # release download. The branch is a single force-pushed commit — its git
+      # history is irrelevant; the version history lives inside appcast.xml.
+      - name: Publish appcast.xml to appcast branch
+        if: steps.check_tag.outputs.exists == 'false'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          VERSION=${{ steps.version.outputs.version }}
+
+          WORKDIR=$(mktemp -d)
+          cp appcast.xml "$WORKDIR/appcast.xml"
+          cd "$WORKDIR"
+
+          git init -q
+          git checkout -q -b appcast
+          git add appcast.xml
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -q -m "chore: publish appcast.xml for v${VERSION}"
+          git push -f \
+            "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            appcast
+
+          echo "✅ appcast.xml published to the appcast branch"
 
       # Mint a 1-hour GitHub App installation token instead of using a
       # static PAT. The `agiletec-inc-homebrew-publisher` App is installed

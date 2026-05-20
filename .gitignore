@@ -43,3 +43,6 @@ pnpm-lock.yaml
 pnpm-workspace.yaml
 node_modules/
 .airis/backups/
+
+# Claude Code harness artifacts
+.claude/scheduled_tasks.lock
