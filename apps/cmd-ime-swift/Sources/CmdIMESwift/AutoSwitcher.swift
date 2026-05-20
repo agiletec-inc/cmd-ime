@@ -5,6 +5,7 @@
 
 import Cocoa
 import Carbon.HIToolbox
+import Combine
 
 @MainActor
 final class AutoSwitcher {
@@ -18,19 +19,36 @@ final class AutoSwitcher {
     // When in an auto-switch field, this holds the source to restore on exit.
     private var savedBeforeAutoField: String?
 
-    private var pollTimer: Timer?
+    // AXObserver watching focus changes in the frontmost app (smart mode only).
+    // Replaces the old 500ms polling timer: the field is re-evaluated only when
+    // the focused UI element actually changes, not on a fixed schedule.
+    private var focusObserver: AXObserver?
+    private var observedPID: pid_t?
+    private var modeCancellable: AnyCancellable?
 
-    // Call once on app launch; timer runs forever but is a no-op when disabled.
+    // Call once on app launch.
     func start() {
-        pollTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated { self?.tick() }
-        }
+        // React to switching-mode changes: attach the focus observer when smart
+        // mode is turned on, tear it down (and restore the input source) when it
+        // is turned off. @Published delivers the current value on subscription,
+        // so this also performs the initial wiring.
+        modeCancellable = AppSettings.shared.$switchingMode
+            .sink { [weak self] mode in
+                MainActor.assumeIsolated { self?.applySwitchingMode(mode) }
+            }
     }
 
     // Called by KeyEvent.setActiveApp on every app switch.
     func handleAppActivation(bundleID: String, pid: pid_t) {
         let mode = AppSettings.shared.switchingMode
         guard mode == .perApp || mode == .smart else { return }
+
+        // Re-point the focus observer at the newly activated app. Done before the
+        // same-app guard so an app relaunch (new pid, same bundle id) re-attaches.
+        if mode == .smart {
+            attachFocusObserver(pid: pid)
+        }
+
         guard bundleID != currentAppID else { return }
 
         if !currentAppID.isEmpty {
@@ -43,19 +61,73 @@ final class AutoSwitcher {
 
         currentAppID = bundleID
         savedBeforeAutoField = nil
-    }
 
-    // MARK: - Field polling (smart mode only)
-
-    private func tick() {
-        guard AppSettings.shared.switchingMode == .smart else {
-            if savedBeforeAutoField != nil { restoreFromAutoField() }
-            return
+        if mode == .smart {
+            checkSmartField()
         }
-        checkSmartField()
     }
+
+    private func applySwitchingMode(_ mode: AppSettings.SwitchingMode) {
+        if mode == .smart {
+            attachFocusObserverToFrontmostApp()
+            checkSmartField()
+        } else {
+            detachFocusObserver()
+            restoreFromAutoField()
+        }
+    }
+
+    // MARK: - Focus observer (smart mode only)
+
+    private func attachFocusObserverToFrontmostApp() {
+        guard let app = NSWorkspace.shared.frontmostApplication else { return }
+        attachFocusObserver(pid: app.processIdentifier)
+    }
+
+    private func attachFocusObserver(pid: pid_t) {
+        // Already watching this process — nothing to do.
+        guard observedPID != pid else { return }
+        detachFocusObserver()
+
+        var observer: AXObserver?
+        // The C callback cannot capture context; it is handed `self` via refcon.
+        let created = AXObserverCreate(pid, { _, _, _, refcon in
+            guard let refcon else { return }
+            let switcher = Unmanaged<AutoSwitcher>.fromOpaque(refcon).takeUnretainedValue()
+            MainActor.assumeIsolated { switcher.checkSmartField() }
+        }, &observer)
+
+        guard created == .success, let observer else { return }
+
+        let appElement = AXUIElementCreateApplication(pid)
+        let refcon = Unmanaged.passUnretained(self).toOpaque()
+        for notification in [
+            kAXFocusedUIElementChangedNotification,
+            kAXFocusedWindowChangedNotification
+        ] as [String] {
+            AXObserverAddNotification(observer, appElement, notification as CFString, refcon)
+        }
+        CFRunLoopAddSource(CFRunLoopGetCurrent(), AXObserverGetRunLoopSource(observer), .defaultMode)
+
+        focusObserver = observer
+        observedPID = pid
+    }
+
+    private func detachFocusObserver() {
+        guard let observer = focusObserver else { return }
+        CFRunLoopRemoveSource(CFRunLoopGetCurrent(), AXObserverGetRunLoopSource(observer), .defaultMode)
+        focusObserver = nil
+        observedPID = nil
+    }
+
+    // MARK: - ASCII-only field detection
 
     private func checkSmartField() {
+        guard AppSettings.shared.switchingMode == .smart else {
+            restoreFromAutoField()
+            return
+        }
+
         guard let app = NSWorkspace.shared.frontmostApplication,
               let bundleID = app.bundleIdentifier,
               exclusionAppsDict[bundleID] == nil else {
@@ -88,8 +160,6 @@ final class AutoSwitcher {
         selectInputSource(id: saved)
         savedBeforeAutoField = nil
     }
-
-    // MARK: - ASCII-only field detection
 
     private func isASCIIOnlyField(_ element: AXUIElement) -> Bool {
         var roleRef: AnyObject?
@@ -149,7 +219,7 @@ final class AutoSwitcher {
     private func selectASCIICapable() {
         let conditions = [
             kTISPropertyInputSourceIsASCIICapable as String: true,
-            kTISPropertyInputSourceIsEnabled as String: true,
+            kTISPropertyInputSourceIsEnabled as String: true
         ] as CFDictionary
         guard let cfList = TISCreateInputSourceList(conditions, false)?.takeRetainedValue() else { return }
         let list = cfList as NSArray

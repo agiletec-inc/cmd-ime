@@ -198,7 +198,7 @@ cat > "$INFO_PLIST" <<EOF
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>SUFeedURL</key>
-    <string>https://github.com/agiletec-inc/cmd-ime/releases/latest/download/appcast.xml</string>
+    <string>https://raw.githubusercontent.com/agiletec-inc/cmd-ime/appcast/appcast.xml</string>
     <key>SUPublicEDKey</key>
     <string>$SPARKLE_PUBLIC_ED_KEY</string>
 EOF
