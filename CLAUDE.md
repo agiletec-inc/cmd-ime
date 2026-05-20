@@ -98,7 +98,7 @@ The tap can be disabled by macOS (e.g., on input-source change). `KeyEvent` hand
 ## Release Flow
 
 1. Update `manifest.toml` → `[project].version`
-2. Push to `main` → CI (`release.yml`) detects the new version tag does not exist
+2. Open a PR and merge to `main` → CI (`release.yml`) triggers on PR merge and detects the new version tag does not exist
 3. CI runs `scripts/package.sh` (builds, signs, bundles `CmdIME.app`)
 4. Creates DMG, optionally notarizes, creates GitHub Release
 5. Updates `agiletec-inc/homebrew-tap` Casks/cmd-ime.rb via squash-merged PR
