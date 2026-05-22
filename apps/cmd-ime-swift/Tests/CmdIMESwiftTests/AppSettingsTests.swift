@@ -81,7 +81,6 @@ final class AppSettingsTests: XCTestCase {
         settings.addExclusion(app)
 
         XCTAssertEqual(settings.exclusionApps.count, 1)
-        XCTAssertEqual(exclusionAppsList.count, 1)
         XCTAssertEqual(exclusionAppsDict["com.microsoft.VSCode"], "Code")
 
         // Adding the same app twice is a no-op.
@@ -90,7 +89,6 @@ final class AppSettingsTests: XCTestCase {
 
         settings.removeExclusion(at: 0)
         XCTAssertEqual(settings.exclusionApps.count, 0)
-        XCTAssertEqual(exclusionAppsList.count, 0)
         XCTAssertNil(exclusionAppsDict["com.microsoft.VSCode"])
     }
 }

@@ -8,7 +8,7 @@
 
 import Cocoa
 
-class AppData: NSObject {
+class AppData: NSObject, Identifiable {
     var name: String
     var id: String
 

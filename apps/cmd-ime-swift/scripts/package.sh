@@ -120,16 +120,6 @@ sign_bundle_with_runtime() {
     fi
 }
 
-sign_nested_code() {
-    local path="$1"
-    shift
-    if [[ "$BUILD_MODE" == "local" ]]; then
-        codesign --force --sign "$SIGN_IDENTITY" "$@" "$path"
-    else
-        codesign --force --timestamp --sign "$SIGN_IDENTITY" "$@" "$path"
-    fi
-}
-
 VERSION="$(resolve_version)"
 BUILD_NUMBER=$(git -C "$PROJECT_ROOT" rev-parse --short HEAD 2>/dev/null || echo "1")
 SIGN_IDENTITY="$(resolve_signing_identity)"
@@ -239,8 +229,10 @@ if [[ -f "$SPARKLE_AUTOUPDATE" ]]; then
     sign_bundle_with_runtime "$SPARKLE_AUTOUPDATE" --identifier "com.kazuki.cmdime.sparkle.autoupdate"
 fi
 
+# The framework binary must also carry the hardened runtime flag — notarytool
+# rejects a bundle where any nested Mach-O lacks it.
 if [[ -f "$SPARKLE_BINARY" ]]; then
-    sign_nested_code "$FRAMEWORKS_DIR/Sparkle.framework"
+    sign_bundle_with_runtime "$FRAMEWORKS_DIR/Sparkle.framework"
 fi
 
 sign_bundle_with_runtime "$APP_DIR"

@@ -9,24 +9,77 @@ on the `main` branch via `.github/workflows/release.yml`.
 
 ## [Unreleased]
 
-## [2.2.0] - 2026-05-09
+### Changed
+- Smart input switching re-evaluates the focused field via `AXObserver` instead
+  of a 500 ms polling timer — lower idle CPU, immediate response (#67).
+- The Sparkle appcast is published to a dedicated `appcast` branch and served
+  from its raw URL, so the update feed no longer depends on the latest GitHub
+  Release and every entry is retained for delta updates (#68).
+- `release.yml` triggers on PR merge instead of push to `main`.
+- `Process` launches use `executableURL` instead of the deprecated `launchPath`
+  property (#83).
+- `KeyEvent.convertedEvent` builds the remapped event on a copy so a tapped
+  event is never mutated as a side effect (#94).
+- CI runs a release-build smoke test (`package.sh`) on every PR, and
+  `Package.resolved` is committed for reproducible dependency resolution and an
+  effective SPM cache key (#81, #89).
+
+### Fixed
+- Reliability, memory, and correctness fixes across the CGEvent tap, Sparkle
+  appcast signing, and the release workflow (#60–#77).
+- Sparkle updater start failures are logged instead of silently swallowed (#82).
+- Smart-field detection reads `kAXTitleAttribute` (a string) instead of
+  `kAXTitleUIElementAttribute` (an element), so title hints are honored (#84).
+- Settings lists key SwiftUI `ForEach` on a stable per-row id instead of the
+  array index, fixing row-state desync on add/remove/reorder (#85).
+- `package.sh` signs `Sparkle.framework` with the hardened runtime so notarized
+  builds are accepted (#87).
+- The Homebrew cask declares `auto_updates true`, so `brew upgrade` no longer
+  conflicts with Sparkle self-updates (#88).
+
+### Removed
+- Stale `TEST_REPORT.md` and unused declarations — `exclusionAppsList`,
+  `mediaKeyDic`, `MediaKeyEvent.nsEvent` (#86, #93).
+
+## [2.3.2] - 2026-05-10
 
 ### Added
-- **Smart input switching (Beta)** — new toggle in General settings (default off).
-  When enabled:
-  - Remembers the last active input source per app and restores it when switching back.
-  - Automatically switches to alphanumeric when focus moves to a browser URL bar
-    (detected via AX description containing "address" / "url" / "location"; works in
-    Safari, Chrome, Edge, Firefox, and similar browsers).
-  - Polling runs every 0.5 s with lightweight AX attribute reads; disabled apps are
-    excluded from URL-field detection.
-- **Exclusions — "Add App…" button** — opens a file picker (defaulting to /Applications)
-  so any installed app can be excluded without needing to switch to it first.
+- SPM build cache in CI for faster PR runs.
 
 ### Changed
-- **Shortcuts Output cell** — replaced key recorder with a preset dropdown (英数 /
-  かな / 無効) plus a "Custom key…" fallback. Fixes the inability to set IME virtual
-  keys (英数 keyCode 102, かな keyCode 104) on keyboards that lack physical 英数/かな keys.
+- `appcast.xml` is also attached as a GitHub Release asset.
+
+## [2.3.1] - 2026-05-10
+
+### Changed
+- In-app updates now use Sparkle's native update UI, replacing the custom
+  update dialog.
+- `release.yml` appcast generation rewritten in `awk`, removing an inline
+  Python heredoc that broke the YAML block scalar.
+
+## [2.3.0] - 2026-05-10
+
+### Added
+- **Input switching modes** — General settings offers three modes: Off,
+  Per-app (remembers the input source per app), and Smart (Beta — per-app
+  memory plus auto-switch to alphanumeric in URL / phone / email / ZIP fields).
+- **Exclusions — "Add App…" button** — opens a file picker (defaulting to
+  /Applications) so any installed app can be excluded without switching to it
+  first.
+- **Input key presets** — the Shortcuts tab offers preset Key/Action menus,
+  including IME-only virtual keys (英数 keyCode 102, かな keyCode 104) that
+  cannot be recorded on keyboards without physical 英数/かな keys.
+
+### Changed
+- **Shortcuts tab** — Key / Action column layout with preset-only dropdown
+  menus, replacing the key recorders.
+- `NSStatusItem` moved from a global variable to an `AppDelegate` property (#38).
+- Release builds accept an Apple Development certificate (not only Developer ID)
+  as a stable signing identity.
+
+### Fixed
+- Memory, reliability, and correctness fixes across the CGEvent tap and
+  login-item handling (#34–#43).
 
 ## [2.0.1] - 2026-05-04
 
@@ -138,8 +191,10 @@ on the `main` branch via `.github/workflows/release.yml`.
 - Renamed the app from `⌘英かな` to `⌘IME`.
 - Cleaned up repository structure.
 
-[Unreleased]: https://github.com/agiletec-inc/cmd-ime/compare/v2.2.0...HEAD
-[2.2.0]: https://github.com/agiletec-inc/cmd-ime/releases/tag/v2.2.0
+[Unreleased]: https://github.com/agiletec-inc/cmd-ime/compare/v2.3.2...HEAD
+[2.3.2]: https://github.com/agiletec-inc/cmd-ime/releases/tag/v2.3.2
+[2.3.1]: https://github.com/agiletec-inc/cmd-ime/releases/tag/v2.3.1
+[2.3.0]: https://github.com/agiletec-inc/cmd-ime/releases/tag/v2.3.0
 [2.0.1]: https://github.com/agiletec-inc/cmd-ime/releases/tag/v2.0.1
 [1.3.4]: https://github.com/agiletec-inc/cmd-ime/releases/tag/v1.3.4
 [1.3.3]: https://github.com/agiletec-inc/cmd-ime/releases/tag/v1.3.3

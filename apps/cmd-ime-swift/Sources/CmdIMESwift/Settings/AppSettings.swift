@@ -4,7 +4,7 @@
 //
 //  Single source of truth for user-facing preferences. Wraps UserDefaults
 //  and SMAppService and keeps the legacy globals consumed by KeyEvent
-//  (`keyMappingList`, `shortcutList`, `exclusionAppsList`, `exclusionAppsDict`)
+//  (`keyMappingList`, `shortcutList`, `exclusionAppsDict`)
 //  in sync with the published state.
 //
 
@@ -162,7 +162,6 @@ final class AppSettings: ObservableObject {
             .sink { [weak self] apps in
                 guard let self = self else { return }
                 self.defaults.set(apps.map { $0.toDictionary() }, forKey: Keys.exclusionApps)
-                exclusionAppsList = apps
                 exclusionAppsDict = Dictionary(uniqueKeysWithValues: apps.map { ($0.id, $0.name) })
             }
             .store(in: &cancellables)
@@ -178,7 +177,6 @@ final class AppSettings: ObservableObject {
     private func publishGlobalsFromState() {
         keyMappingList = keyMappings
         keyMappingListToShortcutList()
-        exclusionAppsList = exclusionApps
         exclusionAppsDict = Dictionary(uniqueKeysWithValues: exclusionApps.map { ($0.id, $0.name) })
     }
 

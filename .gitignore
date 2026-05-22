@@ -20,7 +20,6 @@ Temporary Items
 # Swift
 .build/
 .swiftpm/
-Package.resolved
 
 # Build outputs
 *.app

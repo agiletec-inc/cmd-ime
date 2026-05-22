@@ -9,7 +9,6 @@
 import Cocoa
 
 var activeAppsList: [AppData] = []
-var exclusionAppsList: [AppData] = []
 
 var exclusionAppsDict: [String: String] = [:]
 
@@ -348,11 +347,19 @@ class KeyEvent: NSObject {
 
         if mapping.output.keyCode == 999 { return .disable }
 
-        var ev = event
-        if ev.type.rawValue == UInt32(NX_SYSDEFINED) {
-            let flags = MediaKeyEvent(ev)!.flags
-            ev = CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: true)!
-            ev.flags = flags
+        // Build the remapped event on a fresh CGEvent so the caller's event is
+        // never mutated as a side effect — modifierKeyUp forwards the original.
+        let ev: CGEvent
+        if event.type.rawValue == UInt32(NX_SYSDEFINED) {
+            guard let mediaFlags = MediaKeyEvent(event)?.flags,
+                  let synthesized = CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: true) else {
+                return .passThrough
+            }
+            synthesized.flags = mediaFlags
+            ev = synthesized
+        } else {
+            guard let copy = event.copy() else { return .passThrough }
+            ev = copy
         }
 
         ev.setIntegerValueField(.keyboardEventKeycode, value: Int64(mapping.output.keyCode))
