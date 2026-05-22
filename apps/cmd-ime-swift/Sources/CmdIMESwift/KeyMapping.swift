@@ -8,7 +8,10 @@
 
 import Cocoa
 
-class KeyMapping: NSObject {
+class KeyMapping: NSObject, Identifiable {
+    // Stable per-instance identity for SwiftUI ForEach — must not be derived
+    // from array position, which desyncs row state on add/remove/reorder.
+    let id = UUID()
     var input: KeyboardShortcut
     var output: KeyboardShortcut
     var enable: Bool

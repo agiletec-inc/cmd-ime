@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main]
     paths-ignore:
-      - '*.md'
+      - '**/*.md'
       - 'appcast.xml'
       - '.github/ISSUE_TEMPLATE/**'
   workflow_dispatch:
@@ -16,14 +16,14 @@ concurrency:
 jobs:
   ci:
     runs-on: macos-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     permissions:
       contents: read
     defaults:
       run:
         working-directory: apps/cmd-ime-swift
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Cache Swift build
         uses: actions/cache@v4
         with:
@@ -33,3 +33,9 @@ jobs:
             ${{ runner.os }}-spm-
       - name: Test
         run: swift test
+      # Exercise the release path on every PR so a release-config-only break
+      # or a package.sh regression is caught before merge, not after.
+      - name: Release build smoke test
+        env:
+          CMDIME_BUILD_MODE: local
+        run: bash scripts/package.sh

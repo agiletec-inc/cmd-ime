@@ -53,21 +53,23 @@ struct ShortcutsSettingsView: View {
                 }
                 .padding(.vertical, 2)
 
-                ForEach(Array(settings.keyMappings.enumerated()), id: \.offset) { index, mapping in
-                    HStack(spacing: 12) {
-                        inputCell(label: mapping.input.toString(), index: index)
-                        Image(systemName: "arrow.right").foregroundStyle(.secondary)
-                        actionCell(shortcut: mapping.output, index: index)
-                        Spacer()
-                        Button(role: .destructive) {
-                            settings.removeKeyMapping(at: index)
-                        } label: {
-                            Image(systemName: "minus.circle")
+                ForEach(settings.keyMappings) { mapping in
+                    if let index = settings.keyMappings.firstIndex(where: { $0.id == mapping.id }) {
+                        HStack(spacing: 12) {
+                            inputCell(label: mapping.input.toString(), index: index)
+                            Image(systemName: "arrow.right").foregroundStyle(.secondary)
+                            actionCell(shortcut: mapping.output, index: index)
+                            Spacer()
+                            Button(role: .destructive) {
+                                settings.removeKeyMapping(at: index)
+                            } label: {
+                                Image(systemName: "minus.circle")
+                            }
+                            .buttonStyle(.borderless)
+                            .help("Remove this mapping")
                         }
-                        .buttonStyle(.borderless)
-                        .help("Remove this mapping")
+                        .padding(.vertical, 4)
                     }
-                    .padding(.vertical, 4)
                 }
             }
             .frame(minHeight: 200)

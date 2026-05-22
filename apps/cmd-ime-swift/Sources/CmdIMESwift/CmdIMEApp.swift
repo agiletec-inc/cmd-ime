@@ -24,7 +24,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         updaterController = SPUStandardUpdaterController(startingUpdater: false, updaterDelegate: nil, userDriverDelegate: nil)
         updaterController.updater.automaticallyChecksForUpdates = settings.checkUpdateAtLaunch
-        try? updaterController.updater.start()
+        do {
+            try updaterController.updater.start()
+        } catch {
+            NSLog("⌘IME: Sparkle updater failed to start: %@", error.localizedDescription)
+        }
 
         settings.$checkUpdateAtLaunch
             .dropFirst()
@@ -68,7 +72,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         bundleWatcher?.start {
             let url = URL(fileURLWithPath: Bundle.main.bundlePath)
             let task = Process()
-            task.launchPath = "/usr/bin/open"
+            task.executableURL = URL(fileURLWithPath: "/usr/bin/open")
             task.arguments = [url.path]
             do { try task.run() } catch {}
             NSApplication.shared.terminate(nil)
@@ -87,7 +91,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @IBAction func restart(_ sender: AnyObject) {
         let url = URL(fileURLWithPath: Bundle.main.bundlePath)
         let task = Process()
-        task.launchPath = "/usr/bin/open"
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/open")
         task.arguments = [url.path]
         do { try task.run() } catch { NSLog("⌘IME: restart failed: %@", error.localizedDescription) }
         NSApplication.shared.terminate(self)

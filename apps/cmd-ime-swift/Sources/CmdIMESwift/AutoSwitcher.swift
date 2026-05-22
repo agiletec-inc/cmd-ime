@@ -175,7 +175,7 @@ final class AutoSwitcher {
         let asciiHints = ["url", "address", "location", "phone", "tel", "email",
                           "zip", "postal", "number", "numeric", "code", "pin", "otp"]
         for attr in [kAXDescriptionAttribute, kAXIdentifierAttribute,
-                     kAXPlaceholderValueAttribute, kAXTitleUIElementAttribute] as [String] {
+                     kAXPlaceholderValueAttribute, kAXTitleAttribute] as [String] {
             var ref: AnyObject?
             guard AXUIElementCopyAttributeValue(element, attr as CFString, &ref) == .success,
                   let str = ref as? String else { continue }

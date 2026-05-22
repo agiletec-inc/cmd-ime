@@ -62,7 +62,7 @@ CGEvent tap (system-wide)
 
 `AppSettings` (singleton, `@MainActor`) is the single source of truth for user preferences. It:
 - Wraps `UserDefaults` and publishes `@Published` properties via Combine
-- Keeps the legacy globals (`keyMappingList`, `shortcutList`, `exclusionAppsList`, `exclusionAppsDict` in `KeyMappings.swift` / `KeyEvent.swift`) in sync
+- Keeps the legacy globals (`keyMappingList`, `shortcutList`, `exclusionAppsDict` in `KeyMappings.swift` / `KeyEvent.swift`) in sync
 - Handles UserDefaults key migration from legacy typos (`lunchAtStartup` → `launchAtStartup`)
 - Manages `SMAppService` for login item registration
 
@@ -76,7 +76,6 @@ SwiftUI settings views (`Settings/`) observe `AppSettings.shared` directly.
 |--------|-----------|---------|
 | `keyMappingList` | `AppSettings.$keyMappings` sink | `keyMappingListToShortcutList()` |
 | `shortcutList` | `keyMappingListToShortcutList()` | `KeyEvent.findMapping()` |
-| `exclusionAppsList` | `AppSettings.$exclusionApps` sink | `ExclusionsSettingsView` |
 | `exclusionAppsDict` | `AppSettings.$exclusionApps` sink | `KeyEvent.eventCallback()` |
 | `activeAppsList` | `KeyEvent.setActiveApp()` | `ExclusionsSettingsView` (app picker) |
 | `isRecordingShortcut` | `KeyRecorderSheet` | `KeyEvent.eventCallback()` |

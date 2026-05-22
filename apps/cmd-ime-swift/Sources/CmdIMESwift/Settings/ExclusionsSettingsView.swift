@@ -23,7 +23,7 @@ struct ExclusionsSettingsView: View {
                 emptyRow("No excluded apps yet.")
             } else {
                 List {
-                    ForEach(Array(settings.exclusionApps.enumerated()), id: \.offset) { index, app in
+                    ForEach(settings.exclusionApps) { app in
                         HStack {
                             appIcon(for: app)
                             VStack(alignment: .leading) {
@@ -32,7 +32,9 @@ struct ExclusionsSettingsView: View {
                             }
                             Spacer()
                             Button(role: .destructive) {
-                                settings.removeExclusion(at: index)
+                                if let index = settings.exclusionApps.firstIndex(where: { $0.id == app.id }) {
+                                    settings.removeExclusion(at: index)
+                                }
                             } label: {
                                 Image(systemName: "minus.circle")
                             }

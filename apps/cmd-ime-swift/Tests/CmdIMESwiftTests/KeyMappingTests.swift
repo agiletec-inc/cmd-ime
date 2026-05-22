@@ -20,6 +20,23 @@ final class KeyMappingTests: XCTestCase {
         XCTAssertEqual(restored?.enable, true)
     }
 
+    // SwiftUI ForEach must key on a stable per-instance id, never the array
+    // index — distinct mappings must never collide, and an id must not change
+    // across mutation/persistence round-trips.
+    func testEachMappingHasDistinctStableIdentity() {
+        let first = KeyMapping()
+        let second = KeyMapping()
+        XCTAssertNotEqual(first.id, second.id)
+
+        let originalID = first.id
+        first.input = KeyboardShortcut(keyCode: 55)
+        XCTAssertEqual(first.id, originalID, "Mutating a mapping must not change its identity")
+
+        let restored = KeyMapping(dictionary: first.toDictionary())
+        XCTAssertNotNil(restored)
+        XCTAssertNotEqual(restored?.id, first.id, "A decoded copy is a new instance with its own id")
+    }
+
     func testInitFailsOnMalformedDictionary() {
         XCTAssertNil(KeyMapping(dictionary: [:]))
         XCTAssertNil(KeyMapping(dictionary: ["input": ["keyCode": 1, "flags": 0]]))  // missing output
