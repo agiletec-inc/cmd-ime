@@ -344,8 +344,8 @@ jobs:
           echo "✅ appcast.xml published to the appcast branch"
 
       # Mint a 1-hour GitHub App installation token instead of using a
-      # static PAT. The `agiletec-inc-homebrew-publisher` App is installed
-      # on `homebrew-tap` only and shared via org-level credentials; same
+      # static PAT. The homebrew-publisher App is installed on
+      # `homebrew-tap` only and shared via org-level credentials; same
       # pattern as airis-workspace's release.yml. This eliminates the
       # per-repo HOMEBREW_TAP_TOKEN PAT (which expires and breaks silently).
       - name: Generate Homebrew tap App token
@@ -357,6 +357,28 @@ jobs:
           private-key: ${{ secrets.HOMEBREW_TAP_PUBLISHER_PRIVATE_KEY }}
           owner: agiletec-inc
           repositories: homebrew-tap
+          # Least-privilege scope: only what's needed to push the cask
+          # branch and open the PR. Survives any future App permission
+          # expansion without auto-inheriting the larger set.
+          permission-contents: write
+          permission-pull-requests: write
+
+      # Resolve the bot's numeric user-id so the committer email uses the
+      # canonical `<id>+<slug>[bot]@users.noreply.github.com` form GitHub
+      # recognizes as a verified author. Pulling `app-slug` from the token
+      # outputs means renaming the App needs no workflow edits.
+      - name: Resolve App bot identity
+        if: steps.check_tag.outputs.exists == 'false'
+        id: bot
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          SLUG="${{ steps.app-token.outputs.app-slug }}"
+          USER_ID=$(gh api "/users/${SLUG}[bot]" --jq .id)
+          {
+            echo "name=${SLUG}[bot]"
+            echo "email=${USER_ID}+${SLUG}[bot]@users.noreply.github.com"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Update Homebrew cask via PR
         if: steps.check_tag.outputs.exists == 'false'
@@ -443,8 +465,8 @@ jobs:
           end
           EOF
 
-          git config user.name "agiletec-inc-homebrew-publisher[bot]"
-          git config user.email "agiletec-inc-homebrew-publisher[bot]@users.noreply.github.com"
+          git config user.name  "${{ steps.bot.outputs.name }}"
+          git config user.email "${{ steps.bot.outputs.email }}"
 
           git add Casks/cmd-ime.rb
           if git diff --cached --quiet; then
