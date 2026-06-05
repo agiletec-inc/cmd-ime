@@ -1,9 +1,14 @@
 import Cocoa
 import Combine
 import Sparkle
+import UserNotifications
 
-class AppDelegate: NSObject, NSApplicationDelegate {
+class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate,
+                   SPUStandardUserDriverDelegate, UNUserNotificationCenterDelegate {
     static weak var shared: AppDelegate?
+
+    // Identifier for the "update available" banner posted on background checks.
+    private static let updateNotificationIdentifier = "UpdateCheck"
 
     var statusItem: NSStatusItem!
     var windowController: NSWindowController?
@@ -22,20 +27,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let settings = AppSettings.shared
         settings.bootstrap()
 
-        updaterController = SPUStandardUpdaterController(startingUpdater: false, updaterDelegate: nil, userDriverDelegate: nil)
-        updaterController.updater.automaticallyChecksForUpdates = settings.checkUpdateAtLaunch
-        do {
-            try updaterController.updater.start()
-        } catch {
-            NSLog("⌘IME: Sparkle updater failed to start: %@", error.localizedDescription)
-        }
-
-        settings.$checkUpdateAtLaunch
-            .dropFirst()
-            .sink { [weak self] value in
-                self?.updaterController.updater.automaticallyChecksForUpdates = value
-            }
-            .store(in: &cancellables)
+        startSparkleUpdater(settings: settings)
 
         // Initialize preference window
         preferenceWindowController = PreferenceWindowController.getInstance()
@@ -79,6 +71,34 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// Configures and starts Sparkle, wiring the gentle-reminder delegates for this
+    /// menu bar agent and keeping automatic checks in sync with the user's preference.
+    private func startSparkleUpdater(settings: AppSettings) {
+        // userDriverDelegate enables Sparkle's "gentle reminders" for this LSUIElement
+        // menu bar agent: on a background/scheduled check we bring the app forward and
+        // post a Notification Center banner, instead of silently popping a dialog the
+        // user (who has no Dock icon to glance at) may never notice.
+        UNUserNotificationCenter.current().delegate = self
+        updaterController = SPUStandardUpdaterController(
+            startingUpdater: false,
+            updaterDelegate: self,
+            userDriverDelegate: self
+        )
+        updaterController.updater.automaticallyChecksForUpdates = settings.checkUpdateAtLaunch
+        do {
+            try updaterController.updater.start()
+        } catch {
+            NSLog("⌘IME: Sparkle updater failed to start: %@", error.localizedDescription)
+        }
+
+        settings.$checkUpdateAtLaunch
+            .dropFirst()
+            .sink { [weak self] value in
+                self?.updaterController.updater.automaticallyChecksForUpdates = value
+            }
+            .store(in: &cancellables)
+    }
+
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         preferenceWindowController.showAndActivate(self)
         return false
@@ -99,6 +119,85 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @IBAction func quit(_ sender: AnyObject) {
         NSApplication.shared.terminate(self)
+    }
+
+    // MARK: - Gentle update reminders (SPUStandardUserDriverDelegate)
+    //
+    // ⌘IME runs as an LSUIElement menu bar agent with no Dock icon, so Sparkle's
+    // standard update alert can surface behind other windows on an automatic check.
+    // Following Sparkle's "gentle reminders" guidance for background apps, we bring
+    // the app to the foreground while an update is on screen and post a Notification
+    // Center banner for non-user-initiated checks.
+    // https://sparkle-project.org/documentation/gentle-reminders
+
+    var supportsGentleScheduledUpdateReminders: Bool { true }
+
+    func standardUserDriverWillHandleShowingUpdate(
+        _ handleShowingUpdate: Bool,
+        forUpdate update: SUAppcastItem,
+        state: SPUUserUpdateState
+    ) {
+        // Bring the agent forward so the update dialog is frontmost and focusable.
+        NSApp.setActivationPolicy(.regular)
+
+        // Only nudge via a banner when the check was scheduled in the background; a
+        // user-initiated "Check for Updates…" already has the user's attention.
+        guard !state.userInitiated else { return }
+
+        NSApp.dockTile.badgeLabel = "1"
+        let content = UNMutableNotificationContent()
+        content.title = "⌘IME の新しいバージョンがあります"
+        content.body = "v\(update.displayVersionString) をインストールできます"
+        let request = UNNotificationRequest(
+            identifier: Self.updateNotificationIdentifier,
+            content: content,
+            trigger: nil
+        )
+        UNUserNotificationCenter.current().add(request)
+    }
+
+    func standardUserDriverDidReceiveUserAttention(forUpdate update: SUAppcastItem) {
+        // The user engaged with the update, so clear the badge and any stale banner.
+        NSApp.dockTile.badgeLabel = ""
+        UNUserNotificationCenter.current()
+            .removeDeliveredNotifications(withIdentifiers: [Self.updateNotificationIdentifier])
+    }
+
+    func standardUserDriverWillFinishUpdateSession() {
+        // Return to menu-bar-only presence once the update interaction is over.
+        NSApp.setActivationPolicy(.accessory)
+    }
+
+    // MARK: - SPUUpdaterDelegate
+
+    func updater(_ updater: SPUUpdater, willScheduleUpdateCheckAfterDelay delay: TimeInterval) {
+        // Ask for notification permission only once automatic checks are actually
+        // scheduled (i.e. the user kept "check for updates on launch" enabled).
+        UNUserNotificationCenter.current()
+            .requestAuthorization(options: [.badge, .alert, .sound]) { _, _ in }
+    }
+
+    // MARK: - UNUserNotificationCenterDelegate
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler(.banner)
+    }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        if response.notification.request.identifier == Self.updateNotificationIdentifier,
+           response.actionIdentifier == UNNotificationDefaultActionIdentifier {
+            // Clicking the banner opens Sparkle's update dialog.
+            updaterController.updater.checkForUpdates()
+        }
+        completionHandler()
     }
 }
 
