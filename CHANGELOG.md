@@ -9,6 +9,15 @@ on the `main` branch via `.github/workflows/release.yml`.
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-06-06
+
+### Added
+- **Gentle update reminders** — as an `LSUIElement` menu bar agent, ⌘IME now
+  brings itself to the foreground while a Sparkle update is on screen and posts
+  a Notification Center banner for background/scheduled checks, so new versions
+  are noticed without a Dock icon to glance at (`SPUStandardUserDriverDelegate`,
+  per Sparkle's gentle-reminders guidance).
+
 ### Changed
 - Smart input switching re-evaluates the focused field via `AXObserver` instead
   of a 500 ms polling timer — lower idle CPU, immediate response (#67).
