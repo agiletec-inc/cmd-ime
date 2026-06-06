@@ -17,6 +17,11 @@ struct GeneralSettingsView: View {
             Section {
                 Toggle("Launch at login", isOn: $settings.launchAtStartup)
                 Toggle("Show menu bar icon", isOn: $settings.showMenuBarIcon)
+                Toggle("Quit ⌘IME with ⌘Q", isOn: $settings.quitOnCommandQ)
+                Text("When off, ⌘Q just closes this window and ⌘IME keeps running "
+                     + "in the menu bar. You can quit anytime from the menu bar icon.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Section {

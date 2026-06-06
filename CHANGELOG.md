@@ -9,6 +9,20 @@ on the `main` branch via `.github/workflows/release.yml`.
 
 ## [Unreleased]
 
+## [2.4.1] - 2026-06-06
+
+### Added
+- **Preferences window keyboard shortcuts** — a minimal main menu gives the window
+  ⌘W (close), ⌘M (minimize), and standard Cut/Copy/Paste/Select All in text fields.
+  ⌘Q closes the window and keeps ⌘IME in the menu bar by default; a new
+  **"Quit ⌘IME with ⌘Q"** toggle (General settings) opts into a full quit. The menu
+  bar "Quit" item always terminates.
+
+### Changed
+- The release workflow fails before publishing if the build's code-signing
+  `TeamIdentifier` drifts from `CMDIME_EXPECTED_TEAM_ID`, since a team change breaks
+  Sparkle auto-updates for already-installed users.
+
 ## [2.4.0] - 2026-06-06
 
 ### Added

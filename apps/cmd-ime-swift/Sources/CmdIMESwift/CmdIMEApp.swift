@@ -57,6 +57,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate,
         menu.addItem(withTitle: "Restart", action: #selector(AppDelegate.restart(_:)), keyEquivalent: "")
         menu.addItem(withTitle: "Quit", action: #selector(AppDelegate.quit(_:)), keyEquivalent: "q")
 
+        // A main menu lets the Preferences window honor ⌘W / ⌘Q and text-editing keys.
+        NSApp.mainMenu = makeMainMenu()
+
         MainActor.assumeIsolated { AutoSwitcher.shared.start() }
         keyEvent.start()
 
@@ -119,6 +122,72 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate,
 
     @IBAction func quit(_ sender: AnyObject) {
         NSApplication.shared.terminate(self)
+    }
+
+    // MARK: - Main menu & ⌘Q / ⌘W handling
+
+    /// Builds a minimal main menu so the Preferences window responds to the
+    /// standard shortcuts. As an LSUIElement agent ⌘IME has no menu bar of its
+    /// own; without this, ⌘W / ⌘Q and the text-editing keys do nothing while a
+    /// window is focused.
+    private func makeMainMenu() -> NSMenu {
+        let mainMenu = NSMenu()
+
+        // App menu — owns the ⌘Q equivalent. Whether it quits or merely closes the
+        // focused window is the user's choice (see handleCommandQ).
+        let appItem = NSMenuItem()
+        mainMenu.addItem(appItem)
+        let appMenu = NSMenu()
+        appItem.submenu = appMenu
+        let quitItem = appMenu.addItem(
+            withTitle: "Quit ⌘IME",
+            action: #selector(handleCommandQ(_:)),
+            keyEquivalent: "q"
+        )
+        quitItem.target = self
+
+        // Edit menu — routes Cut/Copy/Paste/Select All to the first responder so
+        // text fields (key recorder, app pickers) get the usual shortcuts.
+        let editItem = NSMenuItem()
+        mainMenu.addItem(editItem)
+        let editMenu = NSMenu(title: "Edit")
+        editItem.submenu = editMenu
+        editMenu.addItem(withTitle: "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        editMenu.addItem(withTitle: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        editMenu.addItem(withTitle: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        editMenu.addItem(withTitle: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+
+        // Window menu — ⌘W closes the focused window (the agent stays in the menu
+        // bar); ⌘M minimizes it.
+        let windowItem = NSMenuItem()
+        mainMenu.addItem(windowItem)
+        let windowMenu = NSMenu(title: "Window")
+        windowItem.submenu = windowMenu
+        windowMenu.addItem(
+            withTitle: "Close",
+            action: #selector(NSWindow.performClose(_:)),
+            keyEquivalent: "w"
+        )
+        windowMenu.addItem(
+            withTitle: "Minimize",
+            action: #selector(NSWindow.performMiniaturize(_:)),
+            keyEquivalent: "m"
+        )
+        NSApp.windowsMenu = windowMenu
+
+        return mainMenu
+    }
+
+    /// ⌘Q handler. By default ⌘IME stays in the menu bar and ⌘Q only closes the
+    /// focused window; the user can opt into a full quit via Settings. The menu
+    /// bar "Quit" item always terminates regardless of this preference.
+    @objc func handleCommandQ(_ sender: Any?) {
+        let quitsApp = MainActor.assumeIsolated { AppSettings.shared.quitOnCommandQ }
+        if quitsApp {
+            NSApplication.shared.terminate(sender)
+        } else {
+            NSApp.keyWindow?.performClose(sender)
+        }
     }
 
     // MARK: - Gentle update reminders (SPUStandardUserDriverDelegate)
