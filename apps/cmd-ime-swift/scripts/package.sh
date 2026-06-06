@@ -121,7 +121,10 @@ sign_bundle_with_runtime() {
 }
 
 VERSION="$(resolve_version)"
-BUILD_NUMBER=$(git -C "$PROJECT_ROOT" rev-parse --short HEAD 2>/dev/null || echo "1")
+# CFBundleVersion must match the appcast's <sparkle:version> (release.yml derives the same
+# MAJOR*10000+MINOR*100+PATCH build number). A git hash here never compares equal to the
+# numeric appcast value, so Sparkle re-offers the installed version on every launch.
+BUILD_NUMBER=$(echo "$VERSION" | awk -F. '{printf "%d%02d%02d", $1, $2, $3}')
 SIGN_IDENTITY="$(resolve_signing_identity)"
 SPARKLE_PUBLIC_ED_KEY="$(resolve_sparkle_public_key)"
 

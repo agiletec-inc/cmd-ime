@@ -9,6 +9,16 @@ on the `main` branch via `.github/workflows/release.yml`.
 
 ## [Unreleased]
 
+## [2.4.2] - 2026-06-07
+
+### Fixed
+- **Sparkle re-offered the installed version on every launch.** `package.sh` stamped
+  `CFBundleVersion` with a git short hash while the appcast advertises a numeric
+  `<sparkle:version>` (`MAJOR*10000+MINOR*100+PATCH`), so the two never compared equal
+  and the updater looped — the downloaded build carried the same hash. `package.sh` now
+  derives `CFBundleVersion` with the same formula as `release.yml`, so an installed build
+  matches its appcast entry. (2.4.1 shipped without this fix.)
+
 ## [2.4.1] - 2026-06-06
 
 ### Added
