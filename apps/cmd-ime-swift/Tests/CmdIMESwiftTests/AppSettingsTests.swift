@@ -41,6 +41,31 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertNil(defaults.object(forKey: "checkUpdateAtlaunch"))
     }
 
+    func testQuitOnCommandQDefaultsToOff() {
+        let settings = AppSettings(defaults: defaults)
+
+        // Default is off: ⌘Q keeps the agent in the menu bar (only closes the window).
+        XCTAssertFalse(settings.quitOnCommandQ)
+    }
+
+    func testQuitOnCommandQLoadsStoredValue() {
+        defaults.set(1, forKey: "quitOnCommandQ")
+
+        let settings = AppSettings(defaults: defaults)
+
+        XCTAssertTrue(settings.quitOnCommandQ)
+    }
+
+    func testQuitOnCommandQPersistsOnChange() {
+        let settings = AppSettings(defaults: defaults)
+
+        settings.quitOnCommandQ = true
+        XCTAssertEqual(defaults.object(forKey: "quitOnCommandQ") as? Int, 1)
+
+        settings.quitOnCommandQ = false
+        XCTAssertEqual(defaults.object(forKey: "quitOnCommandQ") as? Int, 0)
+    }
+
     func testLoadsDefaultKeyMappingsWhenNoneStored() {
         let settings = AppSettings(defaults: defaults)
 

@@ -29,6 +29,7 @@ final class AppSettings: ObservableObject {
         static let showMenuBarIcon = "showIcon"
         static let checkUpdateAtLaunch = "checkUpdateAtLaunch"
         static let legacyCheckUpdateAtLaunch = "checkUpdateAtlaunch"
+        static let quitOnCommandQ = "quitOnCommandQ"
         static let keyMappings = "mappings"
         static let exclusionApps = "exclusionApps"
         static let switchingMode = "switchingMode"
@@ -40,6 +41,7 @@ final class AppSettings: ObservableObject {
     @Published var launchAtStartup: Bool
     @Published var showMenuBarIcon: Bool
     @Published var checkUpdateAtLaunch: Bool
+    @Published var quitOnCommandQ: Bool
     @Published var keyMappings: [KeyMapping]
     @Published var exclusionApps: [AppData]
     @Published var switchingMode: SwitchingMode
@@ -54,6 +56,8 @@ final class AppSettings: ObservableObject {
 
         self.showMenuBarIcon = (defaults.object(forKey: Keys.showMenuBarIcon) as? Int ?? 1) != 0
         self.checkUpdateAtLaunch = (defaults.object(forKey: Keys.checkUpdateAtLaunch) as? Int ?? 1) != 0
+        // Default off: ⌘Q keeps the agent in the menu bar and only closes the window.
+        self.quitOnCommandQ = (defaults.object(forKey: Keys.quitOnCommandQ) as? Int ?? 0) != 0
 
         let stored = (defaults.object(forKey: Keys.launchAtStartup) as? Int ?? 0) != 0
         let serviceEnabled = SMAppService.mainApp.status == .enabled
@@ -140,12 +144,8 @@ final class AppSettings: ObservableObject {
             }
             .store(in: &cancellables)
 
-        $checkUpdateAtLaunch
-            .dropFirst()
-            .sink { [weak self] newValue in
-                self?.defaults.set(newValue ? 1 : 0, forKey: Keys.checkUpdateAtLaunch)
-            }
-            .store(in: &cancellables)
+        persistToggle($checkUpdateAtLaunch, to: Keys.checkUpdateAtLaunch)
+        persistToggle($quitOnCommandQ, to: Keys.quitOnCommandQ)
 
         $keyMappings
             .dropFirst()
@@ -170,6 +170,16 @@ final class AppSettings: ObservableObject {
             .dropFirst()
             .sink { [weak self] newValue in
                 self?.defaults.set(newValue.rawValue, forKey: Keys.switchingMode)
+            }
+            .store(in: &cancellables)
+    }
+
+    /// Persists a published Bool toggle to UserDefaults (stored as 0/1) on change.
+    private func persistToggle(_ publisher: Published<Bool>.Publisher, to key: String) {
+        publisher
+            .dropFirst()
+            .sink { [weak self] newValue in
+                self?.defaults.set(newValue ? 1 : 0, forKey: key)
             }
             .store(in: &cancellables)
     }

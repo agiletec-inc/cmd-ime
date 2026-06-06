@@ -134,6 +134,8 @@ jobs:
 
       - name: Verify code signature
         if: steps.check_tag.outputs.exists == 'false'
+        env:
+          CMDIME_EXPECTED_TEAM_ID: ${{ vars.CMDIME_EXPECTED_TEAM_ID }}
         run: |
           set -euo pipefail
           codesign -dvv release/CmdIME.app 2>&1 | tee /tmp/codesign.log
@@ -147,6 +149,23 @@ jobs:
             echo "OK: signed with stable identity"
           else
             echo "::warning::bundle is ad-hoc signed; expected because CMDIME_SIGNING_CERT_P12_BASE64 is not set"
+          fi
+
+          # Guard against a signing-team change. Sparkle rejects an update whose code
+          # signature is from a different Apple team than the installed app, so a silent
+          # team switch breaks auto-updates for every existing user (see v2.3.2 -> v2.4.0
+          # where RYYXD43X4N -> X494AU8658 produced "An error occurred while running the
+          # updater"). Fail the release before publishing if the team drifts.
+          if [ -n "${CMDIME_EXPECTED_TEAM_ID:-}" ]; then
+            ACTUAL_TEAM=$(sed -n 's/.*TeamIdentifier=\([A-Z0-9]*\).*/\1/p' /tmp/codesign.log | head -1)
+            if [ "$ACTUAL_TEAM" != "$CMDIME_EXPECTED_TEAM_ID" ]; then
+              echo "ERROR: signing TeamIdentifier '$ACTUAL_TEAM' != expected '$CMDIME_EXPECTED_TEAM_ID'." >&2
+              echo "A team change breaks Sparkle auto-updates for existing users. Restore the prior" >&2
+              echo "CMDIME_SIGNING_IDENTITY/cert, or — if the change is deliberate — bump the" >&2
+              echo "CMDIME_EXPECTED_TEAM_ID repo variable (existing users will need a manual reinstall)." >&2
+              exit 1
+            fi
+            echo "OK: TeamIdentifier matches expected ($CMDIME_EXPECTED_TEAM_ID)"
           fi
 
       - name: Create DMG
