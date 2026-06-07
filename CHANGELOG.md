@@ -9,6 +9,20 @@ on the `main` branch via `.github/workflows/release.yml`.
 
 ## [Unreleased]
 
+## [2.4.3] - 2026-06-07
+
+### Changed
+- **Code signing moved from an Apple Development certificate to a stable self-signed
+  identity ("CmdIME Self-Signed Publisher").** An Apple Development cert's Designated
+  Requirement pins the leaf certificate, which rotates ~yearly and resets macOS TCC
+  (Accessibility) grants; the self-signed identity is reused indefinitely, so
+  Accessibility grants and Sparkle updates now persist across releases without a paid
+  Apple Developer Program membership. The app is not notarized, so Gatekeeper shows a
+  one-time "unidentified developer" prompt on first launch (right-click → Open).
+  **Upgrading from ≤2.4.2 requires a one-time manual reinstall** (`brew upgrade --cask
+  cmd-ime`) and re-granting Accessibility, because changing the signing identity is a
+  one-time Designated-Requirement break that Sparkle's in-app updater rejects.
+
 ## [2.4.2] - 2026-06-07
 
 ### Fixed
