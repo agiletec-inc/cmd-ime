@@ -113,10 +113,18 @@ resolve_sparkle_public_key() {
 sign_bundle_with_runtime() {
     local path="$1"
     shift
+    # The hardened runtime enforces library validation, which only admits a loaded
+    # framework whose Team ID matches the main process's. A self-signed identity has no
+    # Team ID, so a hardened main app cannot load the bundled (also Team-ID-less)
+    # Sparkle.framework — dyld kills it at launch with "different Team IDs". Apply the
+    # hardened runtime only for Apple-issued certs (which carry a Team ID and are what
+    # we'd notarize); self-signed and local builds sign without it.
     if [[ "$BUILD_MODE" == "local" ]]; then
         codesign --force --sign "$SIGN_IDENTITY" "$@" "$path"
-    else
+    elif [[ "$SIGN_IDENTITY" == "Developer ID Application: "* || "$SIGN_IDENTITY" == "Apple Development: "* ]]; then
         codesign --force --timestamp --options runtime --sign "$SIGN_IDENTITY" "$@" "$path"
+    else
+        codesign --force --sign "$SIGN_IDENTITY" "$@" "$path"
     fi
 }
 
