@@ -9,6 +9,17 @@ on the `main` branch via `.github/workflows/release.yml`.
 
 ## [Unreleased]
 
+## [2.4.4] - 2026-06-07
+
+### Fixed
+- **2.4.3 would not launch (self-signed + hardened runtime).** The hardened runtime
+  enforces library validation, which only loads a framework whose Team ID matches the
+  main process. A self-signed identity has no Team ID, so the main app could not load
+  the bundled (also Team-ID-less) `Sparkle.framework` — dyld killed it at launch with
+  "different Team IDs" and no Gatekeeper prompt. `package.sh` now applies the hardened
+  runtime only to Apple-issued certificates (which carry a Team ID and are what we'd
+  notarize); self-signed builds are signed without it.
+
 ## [2.4.3] - 2026-06-07
 
 ### Changed
