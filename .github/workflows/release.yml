@@ -168,18 +168,6 @@ jobs:
             echo "OK: TeamIdentifier matches expected ($CMDIME_EXPECTED_TEAM_ID)"
           fi
 
-      - name: Create DMG
-        if: steps.check_tag.outputs.exists == 'false'
-        run: |
-          VERSION=${{steps.version.outputs.version}}
-
-          hdiutil create -volname "CmdIME" \
-            -srcfolder "release/CmdIME.app" \
-            -ov -format UDZO \
-            "cmd-ime-${VERSION}.dmg"
-
-          echo "✅ DMG created: cmd-ime-${VERSION}.dmg"
-
       - name: Check notarization availability
         if: steps.check_tag.outputs.exists == 'false'
         id: notarize
@@ -193,13 +181,56 @@ jobs:
             echo "::warning::APPLE_ID is not set; skipping notarization"
           fi
 
-      - name: Notarize DMG
+      # Notarize and staple the .app BEFORE building the DMG, so the app a user
+      # drags out of the DMG carries its own offline-verifiable ticket. notarytool
+      # accepts a throwaway zip for submission and the ticket is keyed by the app's
+      # cdhash, so stapling the on-disk bundle afterwards is valid. Previously the
+      # DMG was built first and only the standalone app was stapled, leaving the
+      # DMG's internal copy un-stapled — first launch then forced an online
+      # Gatekeeper check (requires network). See #105.
+      - name: Notarize and staple app
         if: steps.check_tag.outputs.exists == 'false' && steps.notarize.outputs.available == 'true'
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
         run: |
+          set -euo pipefail
+          NOTARIZE_ZIP="$RUNNER_TEMP/notarize-app.zip"
+          ditto -c -k --keepParent "release/CmdIME.app" "$NOTARIZE_ZIP"
+
+          echo "🚀 Submitting app for notarization..."
+          xcrun notarytool submit "$NOTARIZE_ZIP" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+
+          echo "✅ Notarized! Stapling the app bundle..."
+          xcrun stapler staple "release/CmdIME.app"
+
+      - name: Create DMG
+        if: steps.check_tag.outputs.exists == 'false'
+        run: |
+          VERSION=${{steps.version.outputs.version}}
+
+          # Built from the app bundle stapled in the previous step (when
+          # notarization ran), so the DMG's internal copy carries the ticket.
+          hdiutil create -volname "CmdIME" \
+            -srcfolder "release/CmdIME.app" \
+            -ov -format UDZO \
+            "cmd-ime-${VERSION}.dmg"
+
+          echo "✅ DMG created: cmd-ime-${VERSION}.dmg"
+
+      - name: Notarize and staple DMG
+        if: steps.check_tag.outputs.exists == 'false' && steps.notarize.outputs.available == 'true'
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
           VERSION=${{steps.version.outputs.version}}
           DMG_PATH="cmd-ime-${VERSION}.dmg"
 
@@ -210,16 +241,15 @@ jobs:
             --team-id "$APPLE_TEAM_ID" \
             --wait
 
-          echo "✅ Notarization successful! Stapling..."
+          echo "✅ Notarization successful! Stapling the DMG..."
           xcrun stapler staple "$DMG_PATH"
-          xcrun stapler staple "release/CmdIME.app"
 
       - name: Create ZIP
         if: steps.check_tag.outputs.exists == 'false'
         run: |
           VERSION=${{steps.version.outputs.version}}
 
-          # Create ZIP after notarization so stapled ticket is included in the Sparkle distribution
+          # Create ZIP from the stapled app so the Sparkle distribution carries the ticket.
           ditto -c -k --keepParent "release/CmdIME.app" "cmd-ime-${VERSION}.zip"
 
           echo "✅ ZIP created: cmd-ime-${VERSION}.zip"
