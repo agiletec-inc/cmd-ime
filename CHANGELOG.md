@@ -9,6 +9,19 @@ on the `main` branch via `.github/workflows/release.yml`.
 
 ## [Unreleased]
 
+## [2.4.5] - 2026-06-08
+
+### Security
+- **Bump Sparkle 2.9.1 → 2.9.3.** 2.9.2 shipped two externally reported security
+  fixes for the auto-update framework; 2.9.3 is a further patch. (#106)
+
+### Fixed
+- **Release: staple the app before building the DMG.** The DMG was previously built
+  from the un-stapled app, so the bundle inside the distributed DMG carried no
+  notarization ticket — a direct download would hit an online Gatekeeper check on
+  first launch. The release workflow now notarizes and staples the app first, then
+  builds the DMG from it. No effect until notarization is enabled. (#105)
+
 ## [2.4.4] - 2026-06-07
 
 ### Fixed
