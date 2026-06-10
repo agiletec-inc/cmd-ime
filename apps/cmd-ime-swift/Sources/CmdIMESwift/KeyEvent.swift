@@ -38,6 +38,10 @@ class KeyEvent: NSObject {
         tapObserver?.release()
         nsEventMonitors.forEach { NSEvent.removeMonitor($0) }
         NSWorkspace.shared.notificationCenter.removeObserver(self)
+        CGDisplayRemoveReconfigurationCallback(
+            displayReconfigurationCallback,
+            UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
+        )
     }
 
     func start() {
@@ -119,6 +123,30 @@ class KeyEvent: NSObject {
 
         // CGEvent tap can run on main thread's RunLoop since NSApplication.run() handles it
         setupCGEventTap()
+
+        // Watch for display add/remove/mode changes. A monitor connect/disconnect
+        // can leave the session tap half-dead (tapIsEnabled() still reports true,
+        // so the heartbeat never recreates it). Force a rebuild on reconfiguration.
+        CGDisplayRegisterReconfigurationCallback(
+            displayReconfigurationCallback,
+            UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
+        )
+    }
+
+    func handleDisplayReconfiguration(flags: CGDisplayChangeSummaryFlags) {
+        // Reconfiguration fires twice (begin + end); act only on the end pass.
+        if flags.contains(.beginConfigurationFlag) { return }
+        guard shouldRebuildTap(for: flags) else { return }
+
+        NSLog("⌘IME: display reconfiguration detected; rebuilding CGEvent tap.")
+        setupCGEventTap()
+    }
+
+    func shouldRebuildTap(for flags: CGDisplayChangeSummaryFlags) -> Bool {
+        let relevant: CGDisplayChangeSummaryFlags = [
+            .addFlag, .removeFlag, .enabledFlag, .disabledFlag, .setModeFlag
+        ]
+        return !flags.isDisjoint(with: relevant)
     }
 
     func setupCGEventTap() {
@@ -223,6 +251,18 @@ class KeyEvent: NSObject {
     }
 
     func eventCallback(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
+        // The system delivers the tap-disabled types to this callback when it
+        // disables the tap (timeout under load, or display reconfiguration on
+        // monitor connect/disconnect — #107). Re-enable immediately instead of
+        // waiting for the 5-second heartbeat.
+        if type.isTapDisabled {
+            NSLog("⌘IME: CGEvent tap disabled by system (type %u); re-enabling.", type.rawValue)
+            if let tap = eventTap {
+                CGEvent.tapEnable(tap: tap, enable: true)
+            }
+            return Unmanaged.passRetained(event)
+        }
+
         if isExclusionApp || isRecordingShortcut {
             return Unmanaged.passRetained(event)
         }
@@ -368,6 +408,25 @@ class KeyEvent: NSObject {
         )
         return .remap(ev)
     }
+}
+
+extension CGEventType {
+    /// Types the system delivers to a tap callback when it disables the tap.
+    var isTapDisabled: Bool {
+        self == .tapDisabledByTimeout || self == .tapDisabledByUserInput
+    }
+}
+
+/// File-level function so it converts to a stable C function pointer, letting
+/// `CGDisplayRemoveReconfigurationCallback` match the registration in `deinit`.
+private func displayReconfigurationCallback(
+    _ display: CGDirectDisplayID,
+    _ flags: CGDisplayChangeSummaryFlags,
+    _ userInfo: UnsafeMutableRawPointer?
+) {
+    guard let userInfo else { return }
+    let keyEvent = Unmanaged<KeyEvent>.fromOpaque(userInfo).takeUnretainedValue()
+    keyEvent.handleDisplayReconfiguration(flags: flags)
 }
 
 let modifierMasks: [CGKeyCode: CGEventFlags] = [
