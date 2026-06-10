@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0"
+     xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle"
+     xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <channel>
+        <title>⌘IME Changelog</title>
+        <link>https://github.com/agiletec-inc/cmd-ime</link>
+        <description>Most recent changes with links to updates.</description>
+        <language>en</language>
+        <item>
+            <title>Version 2.4.0</title>
+            <pubDate>Sat, 06 Jun 2026 02:25:31 +0000</pubDate>
+            <sparkle:version>20400</sparkle:version>
+            <sparkle:shortVersionString>2.4.0</sparkle:shortVersionString>
+            <enclosure
+                url="https://github.com/agiletec-inc/cmd-ime/releases/download/v2.4.0/cmd-ime-2.4.0.zip"
+                sparkle:edSignature="2u2VH54c7DfHCyk9bDTB2baSZSniYeYWWoG8gBIWYvPXEXXYLKj1r3miVp8J7q6livYSITdyfTWEqkTVwkbbAA=="
+                length="2856706"
+                type="application/zip" />
+        </item>
+        <item>
+            <title>Version 2.4.1</title>
+            <pubDate>Sat, 06 Jun 2026 21:53:39 +0000</pubDate>
+            <sparkle:version>20401</sparkle:version>
+            <sparkle:shortVersionString>2.4.1</sparkle:shortVersionString>
+            <enclosure
+                url="https://github.com/agiletec-inc/cmd-ime/releases/download/v2.4.1/cmd-ime-2.4.1.zip"
+                sparkle:edSignature="qkICsAsi2Ok6+WajzvaeQshA4D0/O5AzJ+TBNi3qNLbOU/J2JKnipmsNXxMFZIPo0dcNcIBznBt+JuMul+3xDg=="
+                length="2859367"
+                type="application/zip" />
+        </item>
+        <item>
+            <title>Version 2.4.2</title>
+            <pubDate>Sat, 06 Jun 2026 22:39:19 +0000</pubDate>
+            <sparkle:version>20402</sparkle:version>
+            <sparkle:shortVersionString>2.4.2</sparkle:shortVersionString>
+            <enclosure
+                url="https://github.com/agiletec-inc/cmd-ime/releases/download/v2.4.2/cmd-ime-2.4.2.zip"
+                sparkle:edSignature="PS91F4bKnGzzs/NHsxVnf1Cd2TnN22gfqYjtfAuRxOCp4EuHG8hE+iEJ2mnp/YKxGecyYHeEUC0J3MTceb6tDw=="
+                length="2859350"
+                type="application/zip" />
+        </item>
+        <item>
+            <title>Version 2.4.3</title>
+            <pubDate>Sun, 07 Jun 2026 06:56:26 +0000</pubDate>
+            <sparkle:version>20403</sparkle:version>
+            <sparkle:shortVersionString>2.4.3</sparkle:shortVersionString>
+            <enclosure
+                url="https://github.com/agiletec-inc/cmd-ime/releases/download/v2.4.3/cmd-ime-2.4.3.zip"
+                sparkle:edSignature="mo5I+lopYZ2Dl9hRhs7acNetfdae3oA5VolwNEpczWechuVdxcP4fnBJOoQab/R1XNtJZ9KXDGDjRN1PNpjwDg=="
+                length="2842223"
+                type="application/zip" />
+        </item>
+        <item>
+            <title>Version 2.4.4</title>
+            <pubDate>Sun, 07 Jun 2026 08:02:33 +0000</pubDate>
+            <sparkle:version>20404</sparkle:version>
+            <sparkle:shortVersionString>2.4.4</sparkle:shortVersionString>
+            <enclosure
+                url="https://github.com/agiletec-inc/cmd-ime/releases/download/v2.4.4/cmd-ime-2.4.4.zip"
+                sparkle:edSignature="VSb9c5mUJyYQF8JYTORN3fGZSNShK5Vu+aarpyzLFouAbTlzqyLrmCdJjjhSTTRW7b+w1rpGfFxTKXeSHNYfBA=="
+                length="2811146"
+                type="application/zip" />
+        </item>
+        <item>
+            <title>Version 2.4.5</title>
+            <pubDate>Mon, 08 Jun 2026 12:57:23 +0000</pubDate>
+            <sparkle:version>20405</sparkle:version>
+            <sparkle:shortVersionString>2.4.5</sparkle:shortVersionString>
+            <enclosure
+                url="https://github.com/agiletec-inc/cmd-ime/releases/download/v2.4.5/cmd-ime-2.4.5.zip"
+                sparkle:edSignature="tqBJSrvyy5TWslhewipvKXbxhhW9dIZnSNDxuRkJIOZ+JtBQ4TBiPRaZi+FEw4m6G0UCmss0xf6HwSH/zbMTBA=="
+                length="2813404"
+                type="application/zip" />
+        </item>
+        <item>
+            <title>Version 2.4.6</title>
+            <pubDate>Wed, 10 Jun 2026 10:54:33 +0000</pubDate>
+            <sparkle:version>20406</sparkle:version>
+            <sparkle:shortVersionString>2.4.6</sparkle:shortVersionString>
+            <enclosure
+                url="https://github.com/agiletec-inc/cmd-ime/releases/download/v2.4.6/cmd-ime-2.4.6.zip"
+                sparkle:edSignature="e4ScuIHhyekH5Yyr+6Qiekcth6Ef+uRxxyjg2fJFUZuk9R5qEwcvu4o5NrjbC9kOqPEOGgfMDnC12faN6gayAA=="
+                length="2813942"
+                type="application/zip" />
+        </item>
+    </channel>
+</rss>
