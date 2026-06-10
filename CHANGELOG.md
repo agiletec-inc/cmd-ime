@@ -9,6 +9,17 @@ on the `main` branch via `.github/workflows/release.yml`.
 
 ## [Unreleased]
 
+## [2.4.6] - 2026-06-10
+
+### Fixed
+- **Recover the keyboard listener after an external monitor connect/disconnect.**
+  A display reconfiguration could leave the system event tap disabled (or in a
+  half-dead state where `tapIsEnabled()` still reported `true`), making ⌘IME stop
+  switching input sources until a restart. The callback now re-enables the tap the
+  instant macOS delivers a `tapDisabledByTimeout`/`tapDisabledByUserInput` event,
+  and a `CGDisplayReconfiguration` callback proactively rebuilds the tap on any
+  display add/remove/mode change. (#107)
+
 ## [2.4.5] - 2026-06-08
 
 ### Security

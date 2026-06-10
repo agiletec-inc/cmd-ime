@@ -76,4 +76,33 @@ final class KeyEventTests: XCTestCase {
         XCTAssertNotNil(result)
         XCTAssertEqual(result?.takeRetainedValue().getIntegerValueField(.keyboardEventKeycode), 0)
     }
+
+    // MARK: - Tap recovery (#107: external monitor connect/disconnect)
+
+    func testIsTapDisabled_TrueForSystemDisableTypes() {
+        XCTAssertTrue(CGEventType.tapDisabledByTimeout.isTapDisabled)
+        XCTAssertTrue(CGEventType.tapDisabledByUserInput.isTapDisabled)
+    }
+
+    func testIsTapDisabled_FalseForNormalEventTypes() {
+        XCTAssertFalse(CGEventType.keyDown.isTapDisabled)
+        XCTAssertFalse(CGEventType.keyUp.isTapDisabled)
+        XCTAssertFalse(CGEventType.flagsChanged.isTapDisabled)
+    }
+
+    func testShouldRebuildTap_TrueForDisplayAddRemoveAndModeChange() {
+        XCTAssertTrue(keyEvent.shouldRebuildTap(for: .addFlag))
+        XCTAssertTrue(keyEvent.shouldRebuildTap(for: .removeFlag))
+        XCTAssertTrue(keyEvent.shouldRebuildTap(for: .enabledFlag))
+        XCTAssertTrue(keyEvent.shouldRebuildTap(for: .disabledFlag))
+        XCTAssertTrue(keyEvent.shouldRebuildTap(for: .setModeFlag))
+        // Real reconfiguration end-pass flags often arrive combined.
+        XCTAssertTrue(keyEvent.shouldRebuildTap(for: [.addFlag, .setModeFlag]))
+    }
+
+    func testShouldRebuildTap_FalseForIrrelevantFlags() {
+        XCTAssertFalse(keyEvent.shouldRebuildTap(for: []))
+        XCTAssertFalse(keyEvent.shouldRebuildTap(for: .movedFlag))
+        XCTAssertFalse(keyEvent.shouldRebuildTap(for: .mirrorFlag))
+    }
 }
