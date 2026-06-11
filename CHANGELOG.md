@@ -9,6 +9,30 @@ on the `main` branch via `.github/workflows/release.yml`.
 
 ## [Unreleased]
 
+## [2.4.6] - 2026-06-10
+
+### Fixed
+- **Recover the keyboard listener after an external monitor connect/disconnect.**
+  A display reconfiguration could leave the system event tap disabled (or in a
+  half-dead state where `tapIsEnabled()` still reported `true`), making ⌘IME stop
+  switching input sources until a restart. The callback now re-enables the tap the
+  instant macOS delivers a `tapDisabledByTimeout`/`tapDisabledByUserInput` event,
+  and a `CGDisplayReconfiguration` callback proactively rebuilds the tap on any
+  display add/remove/mode change. (#107)
+
+## [2.4.5] - 2026-06-08
+
+### Security
+- **Bump Sparkle 2.9.1 → 2.9.3.** 2.9.2 shipped two externally reported security
+  fixes for the auto-update framework; 2.9.3 is a further patch. (#106)
+
+### Fixed
+- **Release: staple the app before building the DMG.** The DMG was previously built
+  from the un-stapled app, so the bundle inside the distributed DMG carried no
+  notarization ticket — a direct download would hit an online Gatekeeper check on
+  first launch. The release workflow now notarizes and staples the app first, then
+  builds the DMG from it. No effect until notarization is enabled. (#105)
+
 ## [2.4.4] - 2026-06-07
 
 ### Fixed
