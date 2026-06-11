@@ -109,12 +109,14 @@ swift test
 
 ## 💖 Support This Project
 
-If you find ⌘IME helpful, consider supporting its development:
+⌘IME is free and open source (MIT) — you never have to pay for it. Use it quietly, or, if it saved your fingers some gymnastics, a tweet or a ⭐ goes a long way. 🙂
+
+Right now it ships via Homebrew and a direct DMG. The app is **self-signed, not yet Apple-notarized** — the source is fully open so you can verify it, but a direct DMG download still trips Gatekeeper's "unidentified developer" warning (Homebrew users don't hit this). Clearing that needs an **Apple Developer Program membership — $99/year** for a Developer ID and notarization, so every install is one click. I'm saving toward it; the same membership would also cover my other open-source Swift apps.
+
+So if ⌘IME — or any of the [AIRIS tools](#-part-of-the-airis-ecosystem) — earned a spot in your workflow and you feel like chipping in toward that $99, a coffee or a sponsorship is hugely appreciated. Entirely optional, no pressure.
 
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support-yellow?style=for-the-badge&logo=buy-me-a-coffee)](https://buymeacoffee.com/kazukinakad)
 [![GitHub Sponsors](https://img.shields.io/badge/GitHub%20Sponsors-sponsor-pink?style=for-the-badge&logo=github)](https://github.com/sponsors/kazukinakai)
-
-Your support helps maintain and improve all AIRIS projects!
 
 ---
 
