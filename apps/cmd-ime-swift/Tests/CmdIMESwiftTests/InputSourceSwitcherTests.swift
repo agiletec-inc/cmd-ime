@@ -4,19 +4,23 @@ import Carbon.HIToolbox
 
 final class InputSourceSwitcherTests: XCTestCase {
 
-    func testShouldSwitchViaTIS_TrueForEisuAndKana() {
-        XCTAssertTrue(InputSourceSwitcher.shouldSwitchViaTIS(outputKeyCode: 102))
-        XCTAssertTrue(InputSourceSwitcher.shouldSwitchViaTIS(outputKeyCode: 104))
+    func testIsInputSourceSwitchKey_TrueForEisuAndKana() {
+        XCTAssertTrue(InputSourceSwitcher.isInputSourceSwitchKey(outputKeyCode: 102))
+        XCTAssertTrue(InputSourceSwitcher.isInputSourceSwitchKey(outputKeyCode: 104))
     }
 
-    func testShouldSwitchViaTIS_FalseForOtherKeyCodes() {
-        // A sampling of other outputs that must keep using the old
-        // CGEvent.post remap path unchanged.
-        XCTAssertFalse(InputSourceSwitcher.shouldSwitchViaTIS(outputKeyCode: 0))
-        XCTAssertFalse(InputSourceSwitcher.shouldSwitchViaTIS(outputKeyCode: 53))
-        XCTAssertFalse(InputSourceSwitcher.shouldSwitchViaTIS(outputKeyCode: 999))
-        XCTAssertFalse(InputSourceSwitcher.shouldSwitchViaTIS(outputKeyCode: 103))
-        XCTAssertFalse(InputSourceSwitcher.shouldSwitchViaTIS(outputKeyCode: 105))
+    func testIsInputSourceSwitchKey_FalseForOtherKeyCodes() {
+        // A sampling of other outputs that must keep using the plain
+        // CGEvent-post remap path unchanged.
+        XCTAssertFalse(InputSourceSwitcher.isInputSourceSwitchKey(outputKeyCode: 0))
+        XCTAssertFalse(InputSourceSwitcher.isInputSourceSwitchKey(outputKeyCode: 53))
+        XCTAssertFalse(InputSourceSwitcher.isInputSourceSwitchKey(outputKeyCode: 999))
+        XCTAssertFalse(InputSourceSwitcher.isInputSourceSwitchKey(outputKeyCode: 103))
+        XCTAssertFalse(InputSourceSwitcher.isInputSourceSwitchKey(outputKeyCode: 105))
+    }
+
+    func testTISSwitchAppBundleIDs_ContainsAffinity() {
+        XCTAssertTrue(InputSourceSwitcher.tisSwitchAppBundleIDs.contains("com.canva.affinity"))
     }
 
     /// Regression test for the v2.4.7 bug where the kana switch selected the

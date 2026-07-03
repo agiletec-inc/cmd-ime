@@ -7,28 +7,43 @@ import Cocoa
 import Carbon.HIToolbox
 
 /// Switches the system input source directly via the TIS (Text Input Sources)
-/// API instead of synthesizing Eisu/Kana key events with `CGEvent.post`.
+/// API, used as a fallback for apps that mishandle synthesized Eisu/Kana keys.
 ///
-/// Background: some apps (e.g. Affinity) implement their own text engine and
-/// never route synthesized Eisu (102) / Kana (104) key events through the
-/// standard macOS input-context machinery, so the injected key is consumed as
-/// a literal (half-width space) instead of switching IME. Calling TIS
-/// directly changes the input source regardless of how the frontmost app
-/// handles key events.
+/// The default IME-switch mechanism is posting the Eisu (102) / Kana (104)
+/// virtual keys: those drive the IME's *internal* input mode (Hiragana vs.
+/// direct/Roman), which is the only thing that works for single-mode IMEs like
+/// Google Japanese Input and ATOK — they expose one "base" input mode to TIS
+/// and toggle Hiragana/direct internally, so `TISSelectInputSource` can move
+/// the menu-bar indicator without actually changing what gets typed.
+///
+/// A few apps (e.g. Affinity) run their own text engine and never route the
+/// synthesized Eisu/Kana key through the standard input-context machinery, so
+/// the injected key leaks as a literal (a half-width space) instead of
+/// switching IME. For those apps only, we switch via TIS instead — accepting
+/// that on a single-mode IME this changes the source but not the internal
+/// mode, which is still better than injecting garbage.
 enum InputSourceSwitcher {
     static let eisuKeyCode: CGKeyCode = 102
     static let kanaKeyCode: CGKeyCode = 104
 
-    /// Whether the given remap *output* keyCode should be handled by switching
-    /// the input source via TIS instead of posting a synthesized key event.
-    /// Pulled out as a pure function so the decision is unit-testable without
+    /// Frontmost-app bundle IDs whose text engine mishandles synthesized
+    /// Eisu/Kana keys, so cmd-ime must switch via TIS instead of posting them.
+    static let tisSwitchAppBundleIDs: Set<String> = [
+        "com.canva.affinity",              // Affinity (unified v2.6+)
+        "com.seriflabs.affinitydesigner2",
+        "com.seriflabs.affinityphoto2",
+        "com.seriflabs.affinitypublisher2"
+    ]
+
+    /// Whether the given remap *output* keyCode is an IME input-source switch
+    /// (Eisu or Kana). Pure function so the decision is unit-testable without
     /// touching the (non-thread-safe, GUI-session-dependent) TIS API.
-    static func shouldSwitchViaTIS(outputKeyCode: CGKeyCode) -> Bool {
+    static func isInputSourceSwitchKey(outputKeyCode: CGKeyCode) -> Bool {
         outputKeyCode == eisuKeyCode || outputKeyCode == kanaKeyCode
     }
 
-    /// Performs the actual input-source switch for a remap output keyCode
-    /// that satisfies `shouldSwitchViaTIS`. No-op for any other keyCode.
+    /// Performs the actual input-source switch for an Eisu/Kana output keyCode.
+    /// No-op for any other keyCode.
     ///
     /// TIS is not documented as thread-safe, but this is always invoked from
     /// the CGEvent tap callback, which runs on the main run loop (the tap's
