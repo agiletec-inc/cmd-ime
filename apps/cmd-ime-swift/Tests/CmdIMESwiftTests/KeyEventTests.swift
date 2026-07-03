@@ -31,6 +31,25 @@ final class KeyEventTests: XCTestCase {
     }
 
     func testKeyDown_RemapsEvent_WhenMappingExists() {
+        // Setup: Map Command_L (55) to Escape (53) — a non-Eisu/Kana output,
+        // so this stays on the plain CGEvent-post remap path.
+        let input = KeyboardShortcut(keyCode: 55, flags: .maskCommand)
+        let output = KeyboardShortcut(keyCode: 53)
+        keyMappingList = [KeyMapping(input: input, output: output)]
+        keyMappingListToShortcutList()
+
+        let event = CGEvent(keyboardEventSource: nil, virtualKey: 55, keyDown: true)!
+        event.flags = .maskCommand
+
+        let result = keyEvent.keyDown(event)
+
+        XCTAssertNotNil(result)
+        XCTAssertEqual(result?.takeRetainedValue().getIntegerValueField(.keyboardEventKeycode), 53)
+    }
+
+    // MARK: - Eisu/Kana output swallows the event (TIS switch instead of CGEvent.post)
+
+    func testKeyDown_SwallowsEvent_WhenMappedToKana() {
         // Setup: Map Command_L (55) to Kana (104)
         let input = KeyboardShortcut(keyCode: 55, flags: .maskCommand)
         let output = KeyboardShortcut(keyCode: 104)
@@ -42,8 +61,41 @@ final class KeyEventTests: XCTestCase {
 
         let result = keyEvent.keyDown(event)
 
-        XCTAssertNotNil(result)
-        XCTAssertEqual(result?.takeRetainedValue().getIntegerValueField(.keyboardEventKeycode), 104)
+        // Some apps don't route synthesized Eisu/Kana key events through the
+        // input context, so cmd-ime switches via TIS and swallows the event
+        // rather than posting a synthesized key.
+        XCTAssertNil(result)
+    }
+
+    func testKeyDown_SwallowsEvent_WhenMappedToEisu() {
+        // Setup: Map Command_R (54) to Eisu (102)
+        let input = KeyboardShortcut(keyCode: 54, flags: .maskCommand)
+        let output = KeyboardShortcut(keyCode: 102)
+        keyMappingList = [KeyMapping(input: input, output: output)]
+        keyMappingListToShortcutList()
+
+        let event = CGEvent(keyboardEventSource: nil, virtualKey: 54, keyDown: true)!
+        event.flags = .maskCommand
+
+        let result = keyEvent.keyDown(event)
+
+        XCTAssertNil(result)
+    }
+
+    func testKeyUp_SwallowsEvent_WhenMappedToKana() {
+        // Setup: Map Command_L (55) to Kana (104)
+        let input = KeyboardShortcut(keyCode: 55, flags: .maskCommand)
+        let output = KeyboardShortcut(keyCode: 104)
+        keyMappingList = [KeyMapping(input: input, output: output)]
+        keyMappingListToShortcutList()
+
+        let event = CGEvent(keyboardEventSource: nil, virtualKey: 55, keyDown: false)!
+        event.flags = .maskCommand
+
+        let result = keyEvent.keyUp(event)
+
+        // keyUp must not switch a second time — it just swallows silently.
+        XCTAssertNil(result)
     }
 
     func testKeyDown_SwallowsEvent_WhenMappedToDisable() {
