@@ -47,13 +47,11 @@ final class KeyEventTests: XCTestCase {
         XCTAssertEqual(result?.takeRetainedValue().getIntegerValueField(.keyboardEventKeycode), 53)
     }
 
-    // MARK: - Eisu/Kana output: pass the key through by default (drives the
-    // IME's internal mode, correct for Google/ATOK), swallow only for
-    // Affinity-class apps that mishandle the synthesized key (TIS fallback).
+    // MARK: - Eisu/Kana output passes the remapped key through so the IME
+    // switches its internal Hiragana/direct mode (correct for Google/ATOK).
+    // The synthesized key is posted with a real HID source (see postEvent).
 
-    func testKeyDown_PassesKanaKeyThrough_ForNormalApp() {
-        // Default app (not in the TIS-switch set): the remapped Kana key must
-        // reach the app so the IME switches its internal Hiragana mode.
+    func testKeyDown_PassesKanaKeyThrough() {
         let input = KeyboardShortcut(keyCode: 55, flags: .maskCommand)
         let output = KeyboardShortcut(keyCode: 104)
         keyMappingList = [KeyMapping(input: input, output: output)]
@@ -62,31 +60,13 @@ final class KeyEventTests: XCTestCase {
         let event = CGEvent(keyboardEventSource: nil, virtualKey: 55, keyDown: true)!
         event.flags = .maskCommand
 
-        keyEvent.isTISSwitchApp = false
         let result = keyEvent.keyDown(event)
 
         XCTAssertNotNil(result)
         XCTAssertEqual(result?.takeRetainedValue().getIntegerValueField(.keyboardEventKeycode), 104)
     }
 
-    func testKeyDown_SwallowsKana_ForTISSwitchApp() {
-        // Affinity-class app: the synthesized Kana key would leak as a literal,
-        // so cmd-ime switches via TIS and swallows the event instead.
-        let input = KeyboardShortcut(keyCode: 55, flags: .maskCommand)
-        let output = KeyboardShortcut(keyCode: 104)
-        keyMappingList = [KeyMapping(input: input, output: output)]
-        keyMappingListToShortcutList()
-
-        let event = CGEvent(keyboardEventSource: nil, virtualKey: 55, keyDown: true)!
-        event.flags = .maskCommand
-
-        keyEvent.isTISSwitchApp = true
-        let result = keyEvent.keyDown(event)
-
-        XCTAssertNil(result)
-    }
-
-    func testKeyDown_PassesEisuKeyThrough_ForNormalApp() {
+    func testKeyDown_PassesEisuKeyThrough() {
         let input = KeyboardShortcut(keyCode: 54, flags: .maskCommand)
         let output = KeyboardShortcut(keyCode: 102)
         keyMappingList = [KeyMapping(input: input, output: output)]
@@ -95,14 +75,13 @@ final class KeyEventTests: XCTestCase {
         let event = CGEvent(keyboardEventSource: nil, virtualKey: 54, keyDown: true)!
         event.flags = .maskCommand
 
-        keyEvent.isTISSwitchApp = false
         let result = keyEvent.keyDown(event)
 
         XCTAssertNotNil(result)
         XCTAssertEqual(result?.takeRetainedValue().getIntegerValueField(.keyboardEventKeycode), 102)
     }
 
-    func testKeyUp_PassesKanaKeyThrough_ForNormalApp() {
+    func testKeyUp_PassesKanaKeyThrough() {
         let input = KeyboardShortcut(keyCode: 55, flags: .maskCommand)
         let output = KeyboardShortcut(keyCode: 104)
         keyMappingList = [KeyMapping(input: input, output: output)]
@@ -111,27 +90,10 @@ final class KeyEventTests: XCTestCase {
         let event = CGEvent(keyboardEventSource: nil, virtualKey: 55, keyDown: false)!
         event.flags = .maskCommand
 
-        keyEvent.isTISSwitchApp = false
         let result = keyEvent.keyUp(event)
 
         XCTAssertNotNil(result)
         XCTAssertEqual(result?.takeRetainedValue().getIntegerValueField(.keyboardEventKeycode), 104)
-    }
-
-    func testKeyUp_SwallowsKana_ForTISSwitchApp() {
-        let input = KeyboardShortcut(keyCode: 55, flags: .maskCommand)
-        let output = KeyboardShortcut(keyCode: 104)
-        keyMappingList = [KeyMapping(input: input, output: output)]
-        keyMappingListToShortcutList()
-
-        let event = CGEvent(keyboardEventSource: nil, virtualKey: 55, keyDown: false)!
-        event.flags = .maskCommand
-
-        keyEvent.isTISSwitchApp = true
-        let result = keyEvent.keyUp(event)
-
-        // keyUp must not switch a second time — it just swallows silently.
-        XCTAssertNil(result)
     }
 
     func testKeyDown_SwallowsEvent_WhenMappedToDisable() {
