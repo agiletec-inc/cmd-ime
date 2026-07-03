@@ -21,9 +21,6 @@ private enum EventConversion {
 class KeyEvent: NSObject {
     var keyCode: CGKeyCode?
     var isExclusionApp = false
-    // Frontmost app mishandles synthesized Eisu/Kana keys — switch via TIS
-    // instead of posting them (see InputSourceSwitcher).
-    var isTISSwitchApp = false
     let bundleId = Bundle.main.infoDictionary?["CFBundleIdentifier"] as? String ?? "com.kazuki.cmdime"
 
     private var eventTap: CFMachPort?
@@ -84,7 +81,6 @@ class KeyEvent: NSObject {
 
         if let name = app.localizedName, let id = app.bundleIdentifier {
             isExclusionApp = exclusionAppsDict[id] != nil
-            isTISSwitchApp = InputSourceSwitcher.tisSwitchAppBundleIDs.contains(id)
 
             if id != bundleId && !isExclusionApp {
                 activeAppsList = activeAppsList.filter {$0.id != id}
@@ -308,17 +304,7 @@ class KeyEvent: NSObject {
         switch convertedEvent(for: event) {
         case .passThrough:       return Unmanaged.passRetained(event)
         case .disable:           return nil
-        case .remap(let mapped):
-            let outputKeyCode = CGKeyCode(mapped.getIntegerValueField(.keyboardEventKeycode))
-            if InputSourceSwitcher.isInputSourceSwitchKey(outputKeyCode: outputKeyCode), isTISSwitchApp {
-                // Affinity-class app: switch via TIS and swallow, since the
-                // posted Eisu/Kana key would leak as a literal character.
-                InputSourceSwitcher.switchInputSource(outputKeyCode: outputKeyCode)
-                return nil
-            }
-            // Default: pass the remapped Eisu/Kana key through so the IME
-            // drives its internal Hiragana/direct mode (correct for Google/ATOK).
-            return Unmanaged.passRetained(mapped)
+        case .remap(let mapped): return Unmanaged.passRetained(mapped)
         }
     }
 
@@ -328,13 +314,7 @@ class KeyEvent: NSObject {
         switch convertedEvent(for: event) {
         case .passThrough:       return Unmanaged.passRetained(event)
         case .disable:           return nil
-        case .remap(let mapped):
-            let outputKeyCode = CGKeyCode(mapped.getIntegerValueField(.keyboardEventKeycode))
-            if InputSourceSwitcher.isInputSourceSwitchKey(outputKeyCode: outputKeyCode), isTISSwitchApp {
-                // TIS switch already happened on keyDown — swallow the keyUp too.
-                return nil
-            }
-            return Unmanaged.passRetained(mapped)
+        case .remap(let mapped): return Unmanaged.passRetained(mapped)
         }
     }
 
@@ -350,12 +330,7 @@ class KeyEvent: NSObject {
     func modifierKeyUp(_ event: CGEvent) -> Unmanaged<CGEvent>? {
         if self.keyCode == CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode)) {
             if case .remap(let converted) = convertedEvent(for: event) {
-                let outputKeyCode = CGKeyCode(converted.getIntegerValueField(.keyboardEventKeycode))
-                if InputSourceSwitcher.isInputSourceSwitchKey(outputKeyCode: outputKeyCode), isTISSwitchApp {
-                    InputSourceSwitcher.switchInputSource(outputKeyCode: outputKeyCode)
-                } else {
-                    KeyboardShortcut(converted).postEvent()
-                }
+                KeyboardShortcut(converted).postEvent()
             }
         }
 
@@ -374,11 +349,6 @@ class KeyEvent: NSObject {
         case .disable:
             return nil
         case .remap(let mapped):
-            let outputKeyCode = CGKeyCode(mapped.getIntegerValueField(.keyboardEventKeycode))
-            if InputSourceSwitcher.isInputSourceSwitchKey(outputKeyCode: outputKeyCode), isTISSwitchApp {
-                InputSourceSwitcher.switchInputSource(outputKeyCode: outputKeyCode)
-                return nil
-            }
             #if DEBUG
             print(KeyboardShortcut(mapped).toString())
             print(mapped.type == CGEventType.keyDown)

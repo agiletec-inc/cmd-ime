@@ -115,17 +115,35 @@ class KeyboardShortcut: NSObject {
         return self.flags.rawValue & CGEventFlags.maskAlphaShift.rawValue != 0 && keyCode != 57
     }
 
+    /// Synthesizes the mapped key (e.g. Eisu 102 / Kana 104) so the frontmost
+    /// app's IME switches its input mode. This is the right primitive for a
+    /// background switcher: it drives the IME without stealing focus, unlike
+    /// `TISSelectInputSource`, which on macOS only moves the menu-bar indicator
+    /// unless the caller forces activation.
+    ///
+    /// macOS 26 (Tahoe) tightened input-event timing, so the pre-Tahoe way
+    /// (nil event source, key-up posted immediately after key-down) now gets
+    /// dropped and the switch silently fails. Two fixes, matching the proven
+    /// `macism` implementation:
+    ///   1. Use a real HID event source instead of `nil`.
+    ///   2. Space the key-up after the key-down (~50 ms), asynchronously so the
+    ///      event-tap callback (main run loop) is never blocked by a sleep.
     func postEvent() {
         let loc = CGEventTapLocation.cghidEventTap
+        let source = CGEventSource(stateID: .hidSystemState)
 
-        let keyDownEvent = CGEvent(keyboardEventSource: nil, virtualKey: keyCode, keyDown: true)!
-        let keyUpEvent = CGEvent(keyboardEventSource: nil, virtualKey: keyCode, keyDown: false)!
+        guard let keyDownEvent = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: true),
+              let keyUpEvent = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: false) else {
+            return
+        }
 
         keyDownEvent.flags = flags
         keyUpEvent.flags = CGEventFlags()
 
         keyDownEvent.post(tap: loc)
-        keyUpEvent.post(tap: loc)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            keyUpEvent.post(tap: loc)
+        }
     }
 
     func isCover(_ shortcut: KeyboardShortcut) -> Bool {
