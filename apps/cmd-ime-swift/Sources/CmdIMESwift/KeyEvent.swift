@@ -304,7 +304,16 @@ class KeyEvent: NSObject {
         switch convertedEvent(for: event) {
         case .passThrough:       return Unmanaged.passRetained(event)
         case .disable:           return nil
-        case .remap(let mapped): return Unmanaged.passRetained(mapped)
+        case .remap(let mapped):
+            let outputKeyCode = CGKeyCode(mapped.getIntegerValueField(.keyboardEventKeycode))
+            guard InputSourceSwitcher.shouldSwitchViaTIS(outputKeyCode: outputKeyCode) else {
+                return Unmanaged.passRetained(mapped)
+            }
+            // Eisu/Kana: switch the input source directly instead of posting a
+            // synthesized key event (some apps don't route it through the
+            // standard input context — see InputSourceSwitcher doc comment).
+            InputSourceSwitcher.switchInputSource(outputKeyCode: outputKeyCode)
+            return nil
         }
     }
 
@@ -314,7 +323,14 @@ class KeyEvent: NSObject {
         switch convertedEvent(for: event) {
         case .passThrough:       return Unmanaged.passRetained(event)
         case .disable:           return nil
-        case .remap(let mapped): return Unmanaged.passRetained(mapped)
+        case .remap(let mapped):
+            let outputKeyCode = CGKeyCode(mapped.getIntegerValueField(.keyboardEventKeycode))
+            guard InputSourceSwitcher.shouldSwitchViaTIS(outputKeyCode: outputKeyCode) else {
+                return Unmanaged.passRetained(mapped)
+            }
+            // Switch already happened on keyDown — swallow silently to avoid
+            // switching twice.
+            return nil
         }
     }
 
@@ -330,7 +346,12 @@ class KeyEvent: NSObject {
     func modifierKeyUp(_ event: CGEvent) -> Unmanaged<CGEvent>? {
         if self.keyCode == CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode)) {
             if case .remap(let converted) = convertedEvent(for: event) {
-                KeyboardShortcut(converted).postEvent()
+                let outputKeyCode = CGKeyCode(converted.getIntegerValueField(.keyboardEventKeycode))
+                if InputSourceSwitcher.shouldSwitchViaTIS(outputKeyCode: outputKeyCode) {
+                    InputSourceSwitcher.switchInputSource(outputKeyCode: outputKeyCode)
+                } else {
+                    KeyboardShortcut(converted).postEvent()
+                }
             }
         }
 
@@ -349,6 +370,11 @@ class KeyEvent: NSObject {
         case .disable:
             return nil
         case .remap(let mapped):
+            let outputKeyCode = CGKeyCode(mapped.getIntegerValueField(.keyboardEventKeycode))
+            if InputSourceSwitcher.shouldSwitchViaTIS(outputKeyCode: outputKeyCode) {
+                InputSourceSwitcher.switchInputSource(outputKeyCode: outputKeyCode)
+                return nil
+            }
             #if DEBUG
             print(KeyboardShortcut(mapped).toString())
             print(mapped.type == CGEventType.keyDown)
