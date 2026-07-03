@@ -71,31 +71,50 @@ enum InputSourceSwitcher {
         }
     }
 
-    /// Finds an enabled input source whose languages include "ja", preferring
-    /// the standard Hiragana input mode (`com.apple.inputmethod.Japanese`)
-    /// when more than one Japanese source is enabled.
-    private static func japaneseInputSource() -> TISInputSource? {
-        let conditions = [kTISPropertyInputSourceIsEnabled as String: true] as CFDictionary
+    /// Finds an enabled keyboard input source whose languages include "ja",
+    /// preferring the standard Hiragana input mode
+    /// (`com.apple.inputmethod.Japanese`) when more than one is enabled.
+    ///
+    /// Internal (not private) so the regression test can assert the picked
+    /// source is a keyboard input source, never a palette.
+    static func japaneseInputSource() -> TISInputSource? {
+        // Restrict to the keyboard category: language "ja" alone also matches
+        // palette input sources (e.g. the 50-on Kana Palette), and selecting
+        // one of those opens a floating palette window instead of switching
+        // the IME (v2.4.7 regression).
+        let conditions = [
+            kTISPropertyInputSourceIsEnabled as String: true,
+            kTISPropertyInputSourceCategory as String: kTISCategoryKeyboardInputSource as String
+        ] as CFDictionary
         guard let cfList = TISCreateInputSourceList(conditions, false)?.takeRetainedValue() else {
             return nil
         }
         let sources = (cfList as NSArray) as? [TISInputSource] ?? []
 
         let japaneseSources = sources.filter { source in
-            guard let languages = inputSourceLanguages(source) else { return false }
+            guard isSelectCapable(source), let languages = inputSourceLanguages(source) else { return false }
             return languages.contains("ja")
         }
 
-        if let hiragana = japaneseSources.first(where: { inputSourceID($0) == "com.apple.inputmethod.Japanese" }) {
+        // Prefer the Hiragana input mode; its *mode* ID is
+        // "com.apple.inputmethod.Japanese" while the input source ID carries
+        // an IME-specific prefix (e.g. "…Kotoeri.RomajiTyping.Japanese"), so
+        // match on the mode ID.
+        if let hiragana = japaneseSources.first(where: { inputModeID($0) == "com.apple.inputmethod.Japanese" }) {
             return hiragana
         }
 
         return japaneseSources.first
     }
 
-    private static func inputSourceID(_ source: TISInputSource) -> String? {
-        guard let ptr = TISGetInputSourceProperty(source, kTISPropertyInputSourceID) else { return nil }
+    private static func inputModeID(_ source: TISInputSource) -> String? {
+        guard let ptr = TISGetInputSourceProperty(source, kTISPropertyInputModeID) else { return nil }
         return Unmanaged<CFString>.fromOpaque(ptr).takeUnretainedValue() as String
+    }
+
+    private static func isSelectCapable(_ source: TISInputSource) -> Bool {
+        guard let ptr = TISGetInputSourceProperty(source, kTISPropertyInputSourceIsSelectCapable) else { return false }
+        return CFBooleanGetValue(Unmanaged<CFBoolean>.fromOpaque(ptr).takeUnretainedValue())
     }
 
     private static func inputSourceLanguages(_ source: TISInputSource) -> [String]? {
