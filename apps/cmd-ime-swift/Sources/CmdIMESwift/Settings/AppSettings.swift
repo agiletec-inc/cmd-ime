@@ -76,9 +76,37 @@ final class AppSettings: ObservableObject {
     func bootstrap() {
         let serviceEnabled = SMAppService.mainApp.status == .enabled
         if launchAtStartup && !serviceEnabled {
-            // Stored intent is "on" (incl. migrated legacy value) but the OS
-            // never registered us — register now so the next login honors it.
-            setLaunchAtStartup(true)
+            // Stored intent is "on" but the OS is not enabled. Which way to
+            // resolve this depends on *why* the service isn't enabled, so
+            // switch on the actual status instead of treating every
+            // non-enabled state the same:
+            switch SMAppService.mainApp.status {
+            case .requiresApproval:
+                // The item IS registered with SMAppService, but the user
+                // disabled it (or hasn't approved it yet) in System
+                // Settings → Login Items. Follow the OS state instead of
+                // force re-registering behind the user's back. Use the
+                // re-entrancy guard (same pattern as the sink's revert path
+                // below) so the Combine sink doesn't also try to mutate the
+                // OS-side registration while we just sync our stored toggle
+                // to match reality.
+                isApplyingExternalUpdate = true
+                launchAtStartup = false
+                defaults.set(0, forKey: Keys.launchAtStartup)
+                isApplyingExternalUpdate = false
+            default:
+                // .notRegistered / .notFound (plus any unknown future
+                // status, handled here too): we were never registered with
+                // SMAppService at all, so there's no "user turned it off in
+                // System Settings" to defer to. Most likely this is a user
+                // upgrading from a pre-SMAppService version whose legacy
+                // `lunchAtStartup=true` was carried over by
+                // migrateLegacyKeys(in:) but who never went through
+                // SMAppService registration. Honor the stored intent and
+                // register now — this restores the pre-fix behavior for
+                // this specific case only.
+                setLaunchAtStartup(true)
+            }
         } else if !launchAtStartup && serviceEnabled {
             // OS already registered us (e.g. enabled in System Settings) but
             // the stored toggle is off. Follow the OS state.
@@ -89,7 +117,11 @@ final class AppSettings: ObservableObject {
     // MARK: - Mutators surfaced to SwiftUI
 
     func addKeyMapping() {
-        keyMappings.append(KeyMapping())
+        // Start disabled: KeyMapping()'s default shortcut is keyCode 0 (the
+        // "A" key), so a bare enabled row would immediately remap A → A
+        // until the user picks a real input/output through the preset
+        // menus. updateKeyMapping(at:) re-enables it once both are set.
+        keyMappings.append(KeyMapping(input: KeyboardShortcut(), output: KeyboardShortcut(), enable: false))
     }
 
     func removeKeyMapping(at index: Int) {
@@ -105,6 +137,11 @@ final class AppSettings: ObservableObject {
         guard keyMappings.indices.contains(index) else { return }
         if let input = input { keyMappings[index].input = input }
         if let output = output { keyMappings[index].output = output }
+        // A freshly-added row stays disabled until both sides have been
+        // explicitly chosen through the preset menus (see addKeyMapping()).
+        if !keyMappings[index].input.isUnset && !keyMappings[index].output.isUnset {
+            keyMappings[index].enable = true
+        }
         keyMappings = keyMappings  // trigger didSet
     }
 
@@ -162,7 +199,7 @@ final class AppSettings: ObservableObject {
             .sink { [weak self] apps in
                 guard let self = self else { return }
                 self.defaults.set(apps.map { $0.toDictionary() }, forKey: Keys.exclusionApps)
-                exclusionAppsDict = Dictionary(uniqueKeysWithValues: apps.map { ($0.id, $0.name) })
+                exclusionAppsDict = Dictionary(apps.map { ($0.id, $0.name) }, uniquingKeysWith: { first, _ in first })
             }
             .store(in: &cancellables)
 
@@ -187,7 +224,7 @@ final class AppSettings: ObservableObject {
     private func publishGlobalsFromState() {
         keyMappingList = keyMappings
         keyMappingListToShortcutList()
-        exclusionAppsDict = Dictionary(uniqueKeysWithValues: exclusionApps.map { ($0.id, $0.name) })
+        exclusionAppsDict = Dictionary(exclusionApps.map { ($0.id, $0.name) }, uniquingKeysWith: { first, _ in first })
     }
 
     private static func migrateLegacyKeys(in defaults: UserDefaults) {
@@ -216,18 +253,25 @@ final class AppSettings: ObservableObject {
     }
 
     private static func loadKeyMappings(from defaults: UserDefaults) -> [KeyMapping] {
-        if let raw = defaults.object(forKey: Keys.keyMappings) as? [[AnyHashable: Any]] {
-            let parsed = raw.compactMap { KeyMapping(dictionary: $0) }
-            if !parsed.isEmpty { return parsed }
+        // A stored array is authoritative — including an empty one (the user
+        // deliberately removed every mapping). Only fall back to the factory
+        // defaults when the key was never written or isn't an array.
+        guard let raw = defaults.object(forKey: Keys.keyMappings) as? [[AnyHashable: Any]] else {
+            return Self.defaultKeyMappings
         }
-        return Self.defaultKeyMappings
+        return raw.compactMap { KeyMapping(dictionary: $0) }
     }
 
     private static func loadExclusionApps(from defaults: UserDefaults) -> [AppData] {
         guard let raw = defaults.object(forKey: Keys.exclusionApps) as? [[AnyHashable: Any]] else {
             return []
         }
-        return raw.compactMap { AppData(dictionary: $0) }
+        let parsed = raw.compactMap { AppData(dictionary: $0) }
+        // De-dup by id (keep first occurrence) so a duplicate entry in
+        // persisted data (e.g. hand-edited defaults, a prior bug) can never
+        // reach the rest of the app as two entries with the same id.
+        var seenIDs = Set<String>()
+        return parsed.filter { seenIDs.insert($0.id).inserted }
     }
 
     static let defaultKeyMappings: [KeyMapping] = [
