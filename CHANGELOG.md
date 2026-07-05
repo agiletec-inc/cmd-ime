@@ -9,6 +9,51 @@ on the `main` branch via `.github/workflows/release.yml`.
 
 ## [Unreleased]
 
+## [2.4.10] - 2026-07-03
+
+### Fixed
+- **Input switching silently stopped working in normal apps on macOS 26 (Tahoe).**
+  Tahoe tightened input-event timing, and the way ⌘IME synthesized the Eisu/Kana
+  key had two pre-Tahoe habits it now drops: a `nil` `CGEventSource` and posting
+  key-up immediately after key-down. `postEvent()` now uses a real HID event source
+  (`CGEventSource(stateID: .hidSystemState)`) and spaces the key-up ~50 ms after the
+  key-down (dispatched asynchronously so the event-tap callback is never blocked),
+  matching the approach of the reference CJK switcher [`macism`](https://github.com/laishulu/macism). (#118)
+
+### Changed
+- **Switch the input source by posting the Eisu/Kana key, one mechanism for every app.**
+  This drives the IME's own Hiragana/direct mode without stealing focus, which is
+  what a background switcher needs. Removes the TIS (`TISSelectInputSource`)
+  special-casing introduced in 2.4.7–2.4.9 — bare TIS only moves the menu-bar
+  indicator (single-mode IMEs like Google Japanese Input and ATOK expose one input
+  mode, so the menu showed hiragana while typing stayed in direct input), and the
+  focus-stealing workaround it needs is unacceptable while you are typing. (#118)
+
+## [2.4.9] - 2026-07-03
+
+### Fixed
+- **Google Japanese Input / ATOK switched the menu-bar indicator but not the actual
+  input mode.** 2.4.7's TIS switch could not drive a single-mode IME's internal
+  Hiragana/direct state. Restored posting the Eisu/Kana key by default and limited
+  the TIS path to Affinity-class apps. (Superseded by 2.4.10, which drops the TIS
+  path entirely.) (#117)
+
+## [2.4.8] - 2026-07-03
+
+### Fixed
+- **A kana palette window popped up instead of switching to hiragana.** 2.4.7's
+  Japanese-source lookup matched by language alone, which could select the 50-on
+  Kana Palette. Restricted the lookup to keyboard input sources and matched the
+  Hiragana input mode by its input-mode ID. (Superseded by 2.4.10.) (#116)
+
+## [2.4.7] - 2026-07-03
+
+### Fixed
+- **Cmd inserted a half-width space instead of switching IME in Affinity.** Switched
+  the input source via `TISSelectInputSource` for apps whose text engine mishandles
+  the synthesized Eisu/Kana key. This regressed other IMEs and was reworked in
+  2.4.8–2.4.10; see 2.4.10 for the final approach. (#115)
+
 ## [2.4.6] - 2026-06-10
 
 ### Fixed

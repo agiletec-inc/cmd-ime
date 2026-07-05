@@ -23,6 +23,7 @@ brew install --cask agiletec-inc/tap/cmd-ime
 
 - Left Command switches to alphanumeric input
 - Right Command switches to hiragana/kana input
+- Works with any macOS Japanese IME — the system input method (Kotoeri), Google Japanese Input, ATOK
 - Fully customizable key mappings — remap any modifier combination to any key
 - App exclusion list — disable switching in specific apps
 - Auto-restarts when updated via `brew upgrade` (no manual re-launch needed)
@@ -31,7 +32,7 @@ brew install --cask agiletec-inc/tap/cmd-ime
 
 - **Simple & Fast**: Minimal resource usage, instant response
 - **Swift-Only Stack**: Native macOS code (no Tauri/Electron)
-- **Modern macOS Support**: Built for macOS 13 and later
+- **Modern macOS Support**: Runs on macOS 13 (Ventura) through macOS 26 (Tahoe)
 - **Customizable**: Remap key combinations in Preferences
 
 ## Settings
