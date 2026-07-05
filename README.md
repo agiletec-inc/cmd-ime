@@ -102,7 +102,7 @@ swift test
 |-----------|---------|
 | **[airis-mcp-gateway](https://github.com/agiletec-inc/airis-mcp-gateway)** | 🚪 Unified MCP hub with 90% token reduction |
 | **[mindbase](https://github.com/agiletec-inc/mindbase)** | 💾 Local cross-session memory with semantic search |
-| **[airis-workspace](https://github.com/agiletec-inc/airis-workspace)** | 🏗️ Docker-first monorepo manager |
+| **[airis-workspace](https://github.com/agiletec-inc/airis-workspace)** | 🏗️ `airis` CLI — generates compose / tsconfig / AI-rule files from `manifest.toml` |
 | **[neural](https://github.com/agiletec-inc/neural)** | 🌐 Local LLM translation tool (DeepL alternative) |
 | **[airis-code](https://github.com/agiletec-inc/airis-code)** | 🖥️ Terminal-first autonomous coding agent |
 
