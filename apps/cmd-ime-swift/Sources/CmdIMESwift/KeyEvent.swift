@@ -23,7 +23,15 @@ class KeyEvent: NSObject {
     var isExclusionApp = false
     let bundleId = Bundle.main.infoDictionary?["CFBundleIdentifier"] as? String ?? "com.kazuki.cmdime"
 
+    // Modifier keyCodes currently physically held down, per this tap's view of
+    // the world. Used to detect chords (more than one modifier held) so a
+    // second key going down while another is already down doesn't get
+    // mistaken for a fresh lone-press gesture once the first key's slot was
+    // cancelled and released.
+    private var downModifierKeyCodes: Set<CGKeyCode> = []
+
     private var eventTap: CFMachPort?
+    private var eventTapRunLoopSource: CFRunLoopSource?
     private var tapRetryAttempts = 0
     private var tapObserver: Unmanaged<KeyEvent>?
     private var tapHeartbeat: Timer?
@@ -35,6 +43,9 @@ class KeyEvent: NSObject {
 
     deinit {
         tapHeartbeat?.invalidate()
+        // Invalidate the mach port before releasing tapObserver — the tap's
+        // callback still holds that pointer as its refcon until invalidated.
+        tearDownEventTap()
         tapObserver?.release()
         nsEventMonitors.forEach { NSEvent.removeMonitor($0) }
         NSWorkspace.shared.notificationCenter.removeObserver(self)
@@ -149,10 +160,30 @@ class KeyEvent: NSObject {
         return !flags.isDisjoint(with: relevant)
     }
 
+    /// Fully tears down the current tap (if any): disables it, removes its
+    /// run-loop source from the main run loop, and invalidates the mach port.
+    /// Must run before `tapObserver` is released — the tap's callback still
+    /// holds that pointer as its refcon until the mach port is invalidated.
+    private func tearDownEventTap() {
+        guard let tap = eventTap else { return }
+
+        CGEvent.tapEnable(tap: tap, enable: false)
+        if let source = eventTapRunLoopSource {
+            CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes)
+        }
+        CFMachPortInvalidate(tap)
+        eventTap = nil
+        eventTapRunLoopSource = nil
+    }
+
     func setupCGEventTap() {
-        // Release resources from any previous tap attempt.
+        // Release resources from any previous tap attempt. The old tap must
+        // be torn down (not just the heartbeat/observer) or a rebuild (e.g.
+        // on display reconfiguration, #107) leaves it alive and registered
+        // on the main run loop, so every keystroke gets processed twice.
         tapHeartbeat?.invalidate()
         tapHeartbeat = nil
+        tearDownEventTap()
         tapObserver?.release()
         tapObserver = nil
 
@@ -209,6 +240,7 @@ class KeyEvent: NSObject {
         tapRetryAttempts = 0
 
         let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
+        eventTapRunLoopSource = runLoopSource
         CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
         CGEvent.tapEnable(tap: tap, enable: true)
 
@@ -323,12 +355,33 @@ class KeyEvent: NSObject {
             print(KeyboardShortcut(event).toString())
         #endif
 
-        self.keyCode = CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode))
+        let code = CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode))
+        downModifierKeyCodes.insert(code)
+
+        if downModifierKeyCodes.count == 1 {
+            // This is the only modifier currently held — arm the lone-press
+            // gesture for it.
+            self.keyCode = code
+        } else {
+            // A chord (e.g. both Commands held) — cancel the lone-press
+            // gesture instead of overwriting the tracked keyCode. Otherwise a
+            // later release of the newly-arrived key would fire the
+            // lone-press mapping while another modifier is still physically
+            // held. Re-pressing a key while a sibling is still held (slot
+            // already nil) must stay cancelled, not re-arm — that's exactly
+            // the case `downModifierKeyCodes.count` catches.
+            self.keyCode = nil
+        }
         return Unmanaged.passRetained(event)
     }
 
     func modifierKeyUp(_ event: CGEvent) -> Unmanaged<CGEvent>? {
-        if self.keyCode == CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode)) {
+        let code = CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode))
+        // Remove defensively even if the tap missed the matching keyDown
+        // (e.g. the key was already held when the tap started).
+        downModifierKeyCodes.remove(code)
+
+        if self.keyCode == code {
             if case .remap(let converted) = convertedEvent(for: event) {
                 KeyboardShortcut(converted).postEvent()
             }
@@ -359,7 +412,29 @@ class KeyEvent: NSObject {
     }
 
     func mediaKeyUp(_ mediaKeyEvent: MediaKeyEvent) -> Unmanaged<CGEvent>? {
-        return Unmanaged.passRetained(mediaKeyEvent.event)
+        let mediaKeyCodeValue = CGKeyCode(1000 + mediaKeyEvent.keyCode)
+        switch convertedEvent(for: mediaKeyEvent.event, keyCode: mediaKeyCodeValue) {
+        case .passThrough:
+            return Unmanaged.passRetained(mediaKeyEvent.event)
+        case .disable:
+            return nil
+        case .remap(let mapped):
+            // convertedEvent() always synthesizes a keyDown-type event (see
+            // its NX_SYSDEFINED branch), so build the matching keyUp here —
+            // otherwise the remapped key is left stuck down in the
+            // frontmost app since mediaKeyDown's keyDown is never followed
+            // by a keyUp.
+            guard let keyUpEvent = CGEvent(
+                keyboardEventSource: nil,
+                virtualKey: CGKeyCode(mapped.getIntegerValueField(.keyboardEventKeycode)),
+                keyDown: false
+            ) else {
+                return nil
+            }
+            keyUpEvent.flags = mapped.flags
+            keyUpEvent.post(tap: .cgSessionEventTap)
+            return nil
+        }
     }
 
     // MARK: - Key mapping
