@@ -91,12 +91,87 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertEqual(stored?.count, initialCount + 1)
     }
 
+    func testAddedKeyMappingStartsDisabled() {
+        // A bare KeyMapping()'s default shortcut is keyCode 0 ("A"), so the
+        // new row must not be live until the user configures it.
+        let settings = AppSettings(defaults: defaults)
+
+        settings.addKeyMapping()
+
+        XCTAssertFalse(settings.keyMappings.last?.enable ?? true)
+    }
+
+    func testUpdateKeyMappingEnablesOnlyOnceBothInputAndOutputAreSet() {
+        let settings = AppSettings(defaults: defaults)
+        settings.addKeyMapping()
+        let index = settings.keyMappings.count - 1
+
+        settings.updateKeyMapping(at: index, input: KeyboardShortcut(keyCode: 54))
+        XCTAssertFalse(settings.keyMappings[index].enable, "still missing an output")
+
+        settings.updateKeyMapping(at: index, output: KeyboardShortcut(keyCode: 102))
+        XCTAssertTrue(settings.keyMappings[index].enable, "both sides are now set")
+    }
+
     func testRemoveKeyMappingPersistsRemoval() {
         let settings = AppSettings(defaults: defaults)
         settings.removeKeyMapping(at: 0)
 
         XCTAssertEqual(settings.keyMappings.count, 1)
         XCTAssertEqual(keyMappingList.count, 1)
+    }
+
+    func testStoredEmptyKeyMappingsArraySurvivesReloadAsEmpty() {
+        // A stored empty array is authoritative — the user removed every
+        // mapping on purpose and must not get the factory defaults back.
+        defaults.set([[AnyHashable: Any]](), forKey: "mappings")
+
+        let settings = AppSettings(defaults: defaults)
+
+        XCTAssertEqual(settings.keyMappings.count, 0)
+    }
+
+    func testMissingKeyMappingsKeyStillYieldsDefaults() {
+        // No "mappings" key at all (fresh install) still yields the two
+        // factory defaults, distinguishing "never written" from "emptied".
+        let settings = AppSettings(defaults: defaults)
+
+        XCTAssertEqual(settings.keyMappings.count, 2)
+    }
+
+    func testDuplicateExclusionAppEntriesAreDedupedKeepingFirst() {
+        // Two stored entries share the same id but differ in name so we can
+        // tell which one survives de-duping.
+        let first = AppData(name: "First", id: "com.example.app")
+        let second = AppData(name: "Second", id: "com.example.app")
+        defaults.set([first.toDictionary(), second.toDictionary()], forKey: "exclusionApps")
+
+        // Must not crash (Dictionary(uniqueKeysWithValues:) would trap on
+        // the duplicate id) and must keep the first occurrence.
+        let settings = AppSettings(defaults: defaults)
+
+        XCTAssertEqual(settings.exclusionApps.count, 1)
+        XCTAssertEqual(settings.exclusionApps[0].name, "First")
+        XCTAssertEqual(exclusionAppsDict["com.example.app"], "First")
+    }
+
+    func testBootstrapWithStoredTrueAndServiceNotFoundRegistersInstead() {
+        // SMAppService.Status isn't injectable here, so this only exercises
+        // whatever status the real API reports for the `swift test` process
+        // (an unsigned, unregistered binary — not a proper .app bundle).
+        // That is reliably `.notFound` (confirmed empirically), which is the
+        // "never registered" branch: bootstrap() must honor the stored
+        // intent and attempt to register, NOT flip the toggle off. The
+        // `.requiresApproval` branch (registered but user-disabled) isn't
+        // reachable from this test process and has no automated coverage.
+        defaults.set(1, forKey: "launchAtStartup")
+        let settings = AppSettings(defaults: defaults)
+        XCTAssertTrue(settings.launchAtStartup, "precondition: stored value loaded as on")
+
+        settings.bootstrap()
+
+        XCTAssertTrue(settings.launchAtStartup, "never-registered case must honor stored intent, not follow OS off")
+        XCTAssertEqual(defaults.object(forKey: "launchAtStartup") as? Int, 1)
     }
 
     func testExclusionMutationsPropagateToGlobals() {

@@ -59,6 +59,11 @@ struct ShortcutsSettingsView: View {
                             inputCell(label: mapping.input.toString(), index: index)
                             Image(systemName: "arrow.right").foregroundStyle(.secondary)
                             actionCell(shortcut: mapping.output, index: index)
+                            if Self.isShadowed(settings.keyMappings, at: index) {
+                                Image(systemName: "exclamationmark.triangle")
+                                    .foregroundStyle(.orange)
+                                    .help("Shadowed by an earlier mapping with the same input")
+                            }
                             Spacer()
                             Button(role: .destructive) {
                                 settings.removeKeyMapping(at: index)
@@ -146,6 +151,19 @@ struct ShortcutsSettingsView: View {
     private func actionLabel(for shortcut: KeyboardShortcut) -> String {
         Self.actionPresets.first(where: { $0.shortcut.keyCode == shortcut.keyCode })?.label
             ?? (shortcut.toString().isEmpty ? "Action" : shortcut.toString())
+    }
+
+    /// True when `mappings[index]` is enabled and an earlier enabled row has
+    /// the exact same input (keyCode + flags), so `findMapping`'s
+    /// first-match-wins lookup can never reach this row.
+    static func isShadowed(_ mappings: [KeyMapping], at index: Int) -> Bool {
+        guard mappings.indices.contains(index), mappings[index].enable else { return false }
+        let current = mappings[index].input
+        return mappings[..<index].contains { earlier in
+            earlier.enable
+                && earlier.input.keyCode == current.keyCode
+                && earlier.input.flags.rawValue == current.flags.rawValue
+        }
     }
 }
 

@@ -146,6 +146,13 @@ class KeyboardShortcut: NSObject {
         }
     }
 
+    /// True for the value produced by the parameterless initializer, i.e. no
+    /// key has been chosen yet. No preset menu ever assigns keyCode 0 with no
+    /// flags, so this doubles as "not yet configured" without a new sentinel.
+    var isUnset: Bool {
+        return keyCode == 0 && flags.rawValue == 0
+    }
+
     func isCover(_ shortcut: KeyboardShortcut) -> Bool {
         if shortcut.isCommandDown() && !self.isCommandDown() ||
             shortcut.isShiftDown() && !self.isShiftDown() ||

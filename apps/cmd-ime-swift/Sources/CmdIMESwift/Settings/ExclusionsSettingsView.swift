@@ -34,6 +34,7 @@ struct ExclusionsSettingsView: View {
                             Button(role: .destructive) {
                                 if let index = settings.exclusionApps.firstIndex(where: { $0.id == app.id }) {
                                     settings.removeExclusion(at: index)
+                                    reloadRecent()
                                 }
                             } label: {
                                 Image(systemName: "minus.circle")
