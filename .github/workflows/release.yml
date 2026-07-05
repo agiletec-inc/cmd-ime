@@ -58,6 +58,63 @@ jobs:
             echo "✅ Will create release v${{steps.version.outputs.version}}"
           fi
 
+      # Independent idempotency check for the appcast phase. A run can die after
+      # `gh release create` (tag now exists) but before the appcast branch push
+      # (network/permission failure) — a naive re-run would see the tag and skip
+      # everything, leaving the release on GitHub forever invisible to Sparkle's
+      # auto-update feed. Checking the appcast branch directly (instead of trusting
+      # the tag) lets a re-run detect and finish that specific gap.
+      - name: Check appcast entry status
+        id: check_appcast
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+
+          # Distinguish "branch does not exist" (ls-remote exit 2) from a
+          # transient query failure — conflating them would mark a published
+          # entry as missing and append a duplicate <item> on re-run.
+          set +e
+          git ls-remote --exit-code origin refs/heads/appcast >/dev/null
+          LS_EXIT=$?
+          set -e
+
+          if [ "$LS_EXIT" -eq 0 ]; then
+            git fetch origin appcast
+            git show FETCH_HEAD:appcast.xml > /tmp/appcast_current.xml
+            if grep -q "<sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>" /tmp/appcast_current.xml; then
+              echo "missing=false" >> $GITHUB_OUTPUT
+              echo "✅ appcast branch already has an entry for v${VERSION}"
+            else
+              echo "missing=true" >> $GITHUB_OUTPUT
+              echo "⚠️  appcast branch exists but has no entry for v${VERSION}"
+            fi
+          elif [ "$LS_EXIT" -eq 2 ]; then
+            echo "missing=true" >> $GITHUB_OUTPUT
+            echo "📄 appcast branch not found — treating the appcast entry as missing"
+          else
+            echo "::error::could not query origin for the appcast branch (git ls-remote exit $LS_EXIT)" >&2
+            exit 1
+          fi
+
+      # Single source of truth for which step groups run. Three states:
+      #   needs_build=true,  needs_appcast=true  — full run (tag missing)
+      #   needs_build=false, needs_appcast=true  — recovery (tag exists, appcast entry missing)
+      #   needs_build=false, needs_appcast=false — already fully published, skip everything
+      - name: Decide release phase
+        id: phase
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.check_tag.outputs.exists }}" = "false" ]; then
+            NEEDS_BUILD=true
+          else
+            NEEDS_BUILD=false
+          fi
+          NEEDS_APPCAST="${{ steps.check_appcast.outputs.missing }}"
+
+          echo "needs_build=$NEEDS_BUILD" >> $GITHUB_OUTPUT
+          echo "needs_appcast=$NEEDS_APPCAST" >> $GITHUB_OUTPUT
+          echo "🧭 needs_build=$NEEDS_BUILD needs_appcast=$NEEDS_APPCAST"
+
       # A self-signed code-signing certificate gives the bundle a stable
       # Designated Requirement (anchored to the cert SHA-1 + bundle id),
       # which is what macOS TCC uses to remember Accessibility grants
@@ -71,7 +128,7 @@ jobs:
       # empty. Once the cert is in place the Verify step below upgrades
       # silent ad-hoc fallback to a hard failure.
       - name: Check signing secret availability
-        if: steps.check_tag.outputs.exists == 'false'
+        if: steps.phase.outputs.needs_build == 'true'
         id: signing
         env:
           CERT_P12_BASE64: ${{ secrets.CMDIME_SIGNING_CERT_P12_BASE64 }}
@@ -84,7 +141,7 @@ jobs:
           fi
 
       - name: Import code-signing certificate
-        if: steps.check_tag.outputs.exists == 'false' && steps.signing.outputs.available == 'true'
+        if: steps.phase.outputs.needs_build == 'true' && steps.signing.outputs.available == 'true'
         env:
           CERT_P12_BASE64: ${{ secrets.CMDIME_SIGNING_CERT_P12_BASE64 }}
           CERT_PASSWORD: ${{ secrets.CMDIME_SIGNING_CERT_PASSWORD }}
@@ -117,7 +174,7 @@ jobs:
           rm -f "$CERT_PATH"
 
       - name: Build macOS app
-        if: steps.check_tag.outputs.exists == 'false'
+        if: steps.phase.outputs.needs_build == 'true'
         env:
           CMD_IME_VERSION: ${{ steps.version.outputs.version }}
           CMDIME_SIGNING_IDENTITY: ${{ vars.CMDIME_SIGNING_IDENTITY }}
@@ -133,7 +190,7 @@ jobs:
           cp -R .build/release/CmdIME.app ../../release/
 
       - name: Verify code signature
-        if: steps.check_tag.outputs.exists == 'false'
+        if: steps.phase.outputs.needs_build == 'true'
         env:
           CMDIME_EXPECTED_TEAM_ID: ${{ vars.CMDIME_EXPECTED_TEAM_ID }}
         run: |
@@ -169,7 +226,7 @@ jobs:
           fi
 
       - name: Check notarization availability
-        if: steps.check_tag.outputs.exists == 'false'
+        if: steps.phase.outputs.needs_build == 'true'
         id: notarize
         env:
           _APPLE_ID: ${{ secrets.APPLE_ID }}
@@ -189,7 +246,7 @@ jobs:
       # DMG's internal copy un-stapled — first launch then forced an online
       # Gatekeeper check (requires network). See #105.
       - name: Notarize and staple app
-        if: steps.check_tag.outputs.exists == 'false' && steps.notarize.outputs.available == 'true'
+        if: steps.phase.outputs.needs_build == 'true' && steps.notarize.outputs.available == 'true'
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
@@ -210,7 +267,7 @@ jobs:
           xcrun stapler staple "release/CmdIME.app"
 
       - name: Create DMG
-        if: steps.check_tag.outputs.exists == 'false'
+        if: steps.phase.outputs.needs_build == 'true'
         run: |
           VERSION=${{steps.version.outputs.version}}
 
@@ -224,7 +281,7 @@ jobs:
           echo "✅ DMG created: cmd-ime-${VERSION}.dmg"
 
       - name: Notarize and staple DMG
-        if: steps.check_tag.outputs.exists == 'false' && steps.notarize.outputs.available == 'true'
+        if: steps.phase.outputs.needs_build == 'true' && steps.notarize.outputs.available == 'true'
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
@@ -245,7 +302,7 @@ jobs:
           xcrun stapler staple "$DMG_PATH"
 
       - name: Create ZIP
-        if: steps.check_tag.outputs.exists == 'false'
+        if: steps.phase.outputs.needs_build == 'true'
         run: |
           VERSION=${{steps.version.outputs.version}}
 
@@ -254,8 +311,31 @@ jobs:
 
           echo "✅ ZIP created: cmd-ime-${VERSION}.zip"
 
+      # Recovery path: the tag/release already exists but the appcast entry does
+      # not (a prior run died between `gh release create` and the appcast push).
+      # Rebuilding from source is unnecessary and risks producing a DMG/ZIP that
+      # do not match the bytes already published in the GitHub release — download
+      # the exact assets that were uploaded instead. They land at the same paths
+      # ("cmd-ime-${VERSION}.dmg" / ".zip") the build steps above would have used,
+      # so every step downstream is unaware of which path produced them.
+      - name: Download existing release assets (recovery)
+        if: steps.phase.outputs.needs_build == 'false' && steps.phase.outputs.needs_appcast == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+
+          echo "♻️  Release v${VERSION} exists but the appcast entry is missing — downloading published assets instead of rebuilding"
+          gh release download "v${VERSION}" \
+            --pattern "cmd-ime-${VERSION}.dmg" \
+            --pattern "cmd-ime-${VERSION}.zip" \
+            --clobber
+
+          ls -la "cmd-ime-${VERSION}.dmg" "cmd-ime-${VERSION}.zip"
+
       - name: Calculate SHA256
-        if: steps.check_tag.outputs.exists == 'false'
+        if: steps.phase.outputs.needs_appcast == 'true'
         id: sha256
         run: |
           VERSION=${{steps.version.outputs.version}}
@@ -263,8 +343,37 @@ jobs:
           echo "sha256=$SHA256" >> $GITHUB_OUTPUT
           echo "🔐 SHA256: $SHA256"
 
+      # In the full-run path the Sparkle CLI tools are already resolved as a
+      # side effect of "Build macOS app" (package.sh's `swift build`). In the
+      # recovery path that step was skipped, so sign_update would otherwise be
+      # missing. Resolve the Sparkle package artifacts on demand without
+      # rebuilding the whole app (build is unnecessary for a tool invocation).
+      - name: Resolve Sparkle CLI tools
+        if: steps.phase.outputs.needs_appcast == 'true'
+        run: |
+          set -euo pipefail
+          SIGN_UPDATE="$(pwd)/apps/cmd-ime-swift/.build/artifacts/sparkle/Sparkle/bin/sign_update"
+
+          if [ -x "$SIGN_UPDATE" ]; then
+            echo "✅ sign_update already available (built earlier in this run)"
+            exit 0
+          fi
+
+          echo "📦 sign_update not found — resolving Sparkle package artifacts (recovery path)"
+          (cd apps/cmd-ime-swift && swift package resolve)
+
+          if [ ! -x "$SIGN_UPDATE" ]; then
+            echo "⚙️  Still missing after 'swift package resolve' — falling back to a full package build"
+            (cd apps/cmd-ime-swift && swift build -c release)
+          fi
+
+          if [ ! -x "$SIGN_UPDATE" ]; then
+            echo "::error::sign_update still missing at $SIGN_UPDATE after resolve/build" >&2
+            exit 1
+          fi
+
       - name: Sign ZIP for Sparkle
-        if: steps.check_tag.outputs.exists == 'false'
+        if: steps.phase.outputs.needs_appcast == 'true'
         id: sparkle
         env:
           SPARKLE_PRIVATE_KEY: ${{ secrets.CMDIME_SPARKLE_PRIVATE_ED_KEY }}
@@ -279,6 +388,11 @@ jobs:
             exit 1
           fi
 
+          if [ ! -x "$SIGN_UPDATE" ]; then
+            echo "::error::sign_update binary not found (or not executable) at $SIGN_UPDATE — the Sparkle package artifacts were not resolved" >&2
+            exit 1
+          fi
+
           KEY_FILE="$(mktemp "${RUNNER_TEMP}/sparkle-ed-key.XXXXXX.pem")"
           trap 'rm -f "$KEY_FILE"' EXIT
           printf '%s' "$SPARKLE_PRIVATE_KEY" > "$KEY_FILE"
@@ -287,7 +401,7 @@ jobs:
             | cut -d'"' -f2)
 
           if [ -z "$SIG" ]; then
-            echo "::error::sign_update returned empty signature — check CMDIME_SPARKLE_PRIVATE_ED_KEY"
+            echo "::error::sign_update returned an empty signature for $ZIP_PATH — check CMDIME_SPARKLE_PRIVATE_ED_KEY and the sign_update invocation" >&2
             exit 1
           fi
 
@@ -298,7 +412,7 @@ jobs:
           echo "📦 ZIP size: ${ZIP_SIZE} bytes"
 
       - name: Update appcast.xml
-        if: steps.check_tag.outputs.exists == 'false'
+        if: steps.phase.outputs.needs_appcast == 'true'
         run: |
           set -euo pipefail
           VERSION="${{ steps.version.outputs.version }}"
@@ -308,13 +422,24 @@ jobs:
           PUB_DATE=$(date -u "+%a, %d %b %Y %H:%M:%S +0000")
 
           # Base the appcast off the accumulated copy on the `appcast` branch so
-          # every release entry is preserved. The first run (branch absent) falls
-          # back to the in-repo template, which carries an empty <channel>.
-          if git fetch origin appcast 2>/dev/null; then
+          # every release entry is preserved. Only a confirmed-absent branch
+          # (ls-remote exit 2, i.e. first release ever) may seed from the
+          # in-repo empty template — a transient fetch failure must abort, or
+          # the force-push below would wipe the accumulated feed history.
+          set +e
+          git ls-remote --exit-code origin refs/heads/appcast >/dev/null
+          LS_EXIT=$?
+          set -e
+
+          if [ "$LS_EXIT" -eq 0 ]; then
+            git fetch origin appcast
             git show FETCH_HEAD:appcast.xml > appcast.xml
             echo "📥 Loaded accumulated appcast from the appcast branch"
-          else
+          elif [ "$LS_EXIT" -eq 2 ]; then
             echo "📄 appcast branch not found — seeding from the in-repo template"
+          else
+            echo "::error::could not query origin for the appcast branch (git ls-remote exit $LS_EXIT)" >&2
+            exit 1
           fi
 
           awk \
@@ -344,7 +469,7 @@ jobs:
           cat appcast.xml
 
       - name: Create GitHub Release
-        if: steps.check_tag.outputs.exists == 'false'
+        if: steps.phase.outputs.needs_build == 'true'
         env:
           GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
         run: |
@@ -369,7 +494,7 @@ jobs:
       # release download. The branch is a single force-pushed commit — its git
       # history is irrelevant; the version history lives inside appcast.xml.
       - name: Publish appcast.xml to appcast branch
-        if: steps.check_tag.outputs.exists == 'false'
+        if: steps.phase.outputs.needs_appcast == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -398,7 +523,7 @@ jobs:
       # pattern as airis-workspace's release.yml. This eliminates the
       # per-repo HOMEBREW_TAP_TOKEN PAT (which expires and breaks silently).
       - name: Generate Homebrew tap App token
-        if: steps.check_tag.outputs.exists == 'false'
+        if: steps.phase.outputs.needs_appcast == 'true'
         id: app-token
         uses: actions/create-github-app-token@v3
         with:
@@ -417,7 +542,7 @@ jobs:
       # recognizes as a verified author. Pulling `app-slug` from the token
       # outputs means renaming the App needs no workflow edits.
       - name: Resolve App bot identity
-        if: steps.check_tag.outputs.exists == 'false'
+        if: steps.phase.outputs.needs_appcast == 'true'
         id: bot
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
@@ -430,7 +555,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Update Homebrew cask via PR
-        if: steps.check_tag.outputs.exists == 'false'
+        if: steps.phase.outputs.needs_appcast == 'true'
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
