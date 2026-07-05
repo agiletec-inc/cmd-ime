@@ -9,6 +9,36 @@ on the `main` branch via `.github/workflows/release.yml`.
 
 ## [Unreleased]
 
+## [2.4.11] - 2026-07-05
+
+### Fixed
+- **Keystrokes could be processed multiple times after connecting/disconnecting an
+  external monitor.** Rebuilding the CGEvent tap (added in 2.4.10 for display
+  reconfiguration) never tore down the previous tap, so each rebuild left the old
+  one alive on the run loop — duplicate IME toggles and reinjected key events, plus
+  a mach-port leak. The old tap is now disabled, removed from the run loop, and
+  invalidated before a new one is created. (#107, #122)
+- **Holding one Command key and tapping the other falsely triggered the input
+  switch mid-chord.** The lone-modifier gesture now tracks all physically held
+  modifiers and only fires when exactly one was pressed and released alone. (#122)
+- **A media key remapped to a regular key left that key stuck down** — the key-up
+  was never synthesized. (#122)
+- **Removing every key mapping didn't survive a relaunch** — an intentionally
+  emptied mapping list was treated like missing data and silently reset to the
+  factory defaults. (#124)
+- **A duplicate entry in the persisted exclusion-app list crashed the app on every
+  launch.** Persisted data is now de-duplicated and can no longer trap. (#124)
+- **⌘IME re-enabled its login item behind your back** if you had turned it off in
+  System Settings → Login Items. The stored toggle now follows the OS state; a
+  never-registered legacy migration still registers as intended. (#124)
+- **The "Add" button created a live "A → A" mapping.** New rows now start disabled
+  and only activate once both input and action have been chosen; a mapping shadowed
+  by an earlier one with the same input now shows an inline warning. (#124)
+- **Release pipeline: a run that died between creating the GitHub Release and
+  publishing the Sparkle appcast left the update invisible to auto-updaters with no
+  way to recover.** Re-runs now detect and finish the missing appcast publish, and a
+  transient network failure can no longer wipe the accumulated appcast feed. (#123)
+
 ## [2.4.10] - 2026-07-03
 
 ### Fixed
