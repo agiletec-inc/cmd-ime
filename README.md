@@ -92,19 +92,9 @@ swift test
 
 ---
 
-## 🌟 Part of the AIRIS Ecosystem
+## Part of the AIRIS Suite
 
-⌘IME is part of the **AIRIS Suite** - a collection of self-hosted, privacy-first tools for developers.
-
-### Other AIRIS Tools
-
-| Component | Purpose |
-|-----------|---------|
-| **[airis-mcp-gateway](https://github.com/agiletec-inc/airis-mcp-gateway)** | 🚪 Unified MCP hub with 90% token reduction |
-| **[mindbase](https://github.com/agiletec-inc/mindbase)** | 💾 Local cross-session memory with semantic search |
-| **[airis-workspace](https://github.com/agiletec-inc/airis-workspace)** | 🏗️ `airis` CLI — generates compose / tsconfig / AI-rule files from `manifest.toml` |
-| **[neural](https://github.com/agiletec-inc/neural)** | 🌐 Local LLM translation tool (DeepL alternative) |
-| **[airis-code](https://github.com/agiletec-inc/airis-code)** | 🖥️ Terminal-first autonomous coding agent |
+⌘IME is one of [Agiletec's AIRIS tools](https://github.com/agiletec-inc) — self-hosted, privacy-first developer utilities.
 
 ---
 
