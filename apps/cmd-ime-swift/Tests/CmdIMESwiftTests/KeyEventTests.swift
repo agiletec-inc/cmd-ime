@@ -4,10 +4,14 @@ import XCTest
 final class KeyEventTests: XCTestCase {
 
     var keyEvent: KeyEvent!
+    var postedTaps: [KeyboardShortcut] = []
 
     override func setUp() {
         super.setUp()
         keyEvent = KeyEvent()
+        // Capture synthesized modifier taps instead of posting system-wide events.
+        postedTaps = []
+        keyEvent.postModifierTap = { [weak self] in self?.postedTaps.append($0) }
         // Reset global state
         keyMappingList = []
         shortcutList = [:]
@@ -156,129 +160,140 @@ final class KeyEventTests: XCTestCase {
         XCTAssertFalse(keyEvent.shouldRebuildTap(for: .mirrorFlag))
     }
 
-    // MARK: - Lone-modifier gesture tracking (chord false-fire bug)
+    // MARK: - Modifier tap gesture tracking
     //
-    // modifierKeyDown/modifierKeyUp track a single "lone press in flight"
-    // keyCode in `keyEvent.keyCode`, backed by `downModifierKeyCodes` (the
-    // set of modifier keyCodes currently physically held). modifierKeyDown
-    // arms the lone-press gesture only when the incoming key is the sole
-    // held modifier; otherwise (a chord, or a re-press while a sibling is
-    // still held) it cancels the gesture instead of overwriting the slot.
-    // modifierKeyUp only ever fires its remap when `keyEvent.keyCode` still
-    // equals the released key, so asserting on that tracked value is the
-    // observable proxy for "will fire on release" — the actual remap is
-    // posted to the system as a side effect (KeyboardShortcut.postEvent),
-    // which isn't something a unit test can intercept.
+    // modifierKeyDown/modifierKeyUp track per-modifier pending taps in
+    // `pendingModifierTaps`; a release fires its mapping iff its keyCode is
+    // still pending. Other modifiers held alongside (any press/release
+    // order) must NOT cancel a tap — tapping ⌘ with Shift held still has to
+    // switch the IME. A regular keyDown, mouse event, or media key cancels
+    // all pending taps; a regular keyUp does not. Fired taps are captured
+    // through the `postModifierTap` seam instead of hitting the system.
 
-    func testModifierKeyDown_TracksLoneModifierPress() {
-        let downEvent = CGEvent(keyboardEventSource: nil, virtualKey: 55, keyDown: true)!
-        downEvent.flags = .maskCommand
-
-        _ = keyEvent.modifierKeyDown(downEvent)
-
-        XCTAssertEqual(keyEvent.keyCode, 55)
+    private func modifierEvent(_ keyCode: CGKeyCode, flags: CGEventFlags = []) -> CGEvent {
+        let event = CGEvent(keyboardEventSource: nil, virtualKey: keyCode, keyDown: true)!
+        event.flags = flags
+        return event
     }
 
-    func testModifierKeyDownThenUp_FiresRemap_OnLonePressAndRelease() {
-        // Command_L (55) alone -> Kana (104)
+    func testModifierTap_Fires_OnLonePressAndRelease() {
+        // Command_L (55) -> Kana (104)
         let input = KeyboardShortcut(keyCode: 55, flags: .maskCommand)
         let output = KeyboardShortcut(keyCode: 104)
         keyMappingList = [KeyMapping(input: input, output: output)]
         keyMappingListToShortcutList()
 
-        let downEvent = CGEvent(keyboardEventSource: nil, virtualKey: 55, keyDown: true)!
-        downEvent.flags = .maskCommand
-        _ = keyEvent.modifierKeyDown(downEvent)
-        XCTAssertEqual(keyEvent.keyCode, 55, "lone press must be tracked so the matching release can fire")
+        _ = keyEvent.modifierKeyDown(modifierEvent(55, flags: .maskCommand))
+        XCTAssertEqual(keyEvent.pendingModifierTaps, [55], "press must be pending so the release can fire")
 
-        let upEvent = CGEvent(keyboardEventSource: nil, virtualKey: 55, keyDown: true)!
-        let result = keyEvent.modifierKeyUp(upEvent)
+        _ = keyEvent.modifierKeyUp(modifierEvent(55))
 
-        XCTAssertNotNil(result)
-        XCTAssertNil(keyEvent.keyCode, "tracking slot is cleared after release")
+        XCTAssertEqual(postedTaps.count, 1)
+        XCTAssertEqual(postedTaps.first?.keyCode, 104)
+        XCTAssertTrue(keyEvent.pendingModifierTaps.isEmpty, "pending tap is consumed by the release")
     }
 
-    func testModifierChord_CancelsGesture_SoNeitherReleaseFires() {
-        // Hold Left Command (55), then Right Command (54) while it's still held.
-        let leftDown = CGEvent(keyboardEventSource: nil, virtualKey: 55, keyDown: true)!
-        leftDown.flags = .maskCommand
-        _ = keyEvent.modifierKeyDown(leftDown)
-        XCTAssertEqual(keyEvent.keyCode, 55)
+    func testModifierTap_Fires_WithShiftHeld_AndStripsResidualFlags() {
+        // Shift held the whole time: ⇧ down -> ⌘ down -> ⌘ up. The tap must
+        // still fire, and the synthesized Eisu must NOT carry the Shift flag
+        // (the IME ignores Shift+英数).
+        let input = KeyboardShortcut(keyCode: 55, flags: .maskCommand)
+        let output = KeyboardShortcut(keyCode: 102)
+        keyMappingList = [KeyMapping(input: input, output: output)]
+        keyMappingListToShortcutList()
 
-        let rightDown = CGEvent(keyboardEventSource: nil, virtualKey: 54, keyDown: true)!
-        rightDown.flags = [.maskCommand]
-        _ = keyEvent.modifierKeyDown(rightDown)
+        _ = keyEvent.modifierKeyDown(modifierEvent(56, flags: .maskShift))
+        _ = keyEvent.modifierKeyDown(modifierEvent(55, flags: [.maskCommand, .maskShift]))
+        _ = keyEvent.modifierKeyUp(modifierEvent(55, flags: .maskShift))
 
-        // The chord must cancel tracking for BOTH keys, not overwrite the slot
-        // with 54 (which would make Right Command's release fire alone).
-        XCTAssertNil(keyEvent.keyCode, "second modifier down while one is tracked must cancel, not overwrite")
-
-        let rightUp = CGEvent(keyboardEventSource: nil, virtualKey: 54, keyDown: true)!
-        _ = keyEvent.modifierKeyUp(rightUp)
-        XCTAssertNil(keyEvent.keyCode, "cancelled gesture must not fire on Right Command's release")
-
-        // Left Command is still physically held in this scenario, but its
-        // eventual release must not retroactively fire either.
-        let leftUp = CGEvent(keyboardEventSource: nil, virtualKey: 55, keyDown: true)!
-        _ = keyEvent.modifierKeyUp(leftUp)
-        XCTAssertNil(keyEvent.keyCode, "cancelled gesture must not fire on Left Command's release either")
+        XCTAssertEqual(postedTaps.count, 1, "a held sibling modifier must not cancel the ⌘ tap")
+        XCTAssertEqual(postedTaps.first?.keyCode, 102)
+        XCTAssertEqual(postedTaps.first?.flags, CGEventFlags(),
+                       "residual held modifiers must be stripped from the synthesized tap")
     }
 
-    func testModifierChord_RepressAfterReleaseWhileOtherStillHeld_DoesNotFire() {
-        // Regression for the hole in the first chord fix: the tracked-keyCode
-        // slot alone can't tell "nothing else is held" from "something else
-        // is still held but its slot got cancelled". downModifierKeyCodes
-        // fixes that by counting actual held keys instead.
-        //
-        // Hold Left Command (55) -> press Right Command (54, cancels slot) ->
-        // release Right Command (no fire) -> press Right Command again while
-        // Left Command is STILL held -> release Right Command again. Before
-        // the fix, the slot was nil after the first Right Command release, so
-        // the second Right Command press would re-arm it with 54 and its
-        // release would falsely fire the lone-press mapping.
-        let leftDown = CGEvent(keyboardEventSource: nil, virtualKey: 55, keyDown: true)!
-        leftDown.flags = .maskCommand
-        _ = keyEvent.modifierKeyDown(leftDown)
-        XCTAssertEqual(keyEvent.keyCode, 55)
+    func testModifierTap_Fires_WhenOtherModifierReleasedFirst() {
+        // ⌘ down -> ⇧ down -> ⇧ up -> ⌘ up: the unrelated Shift release must
+        // not consume or cancel the still-pending ⌘ tap.
+        let input = KeyboardShortcut(keyCode: 55, flags: .maskCommand)
+        let output = KeyboardShortcut(keyCode: 102)
+        keyMappingList = [KeyMapping(input: input, output: output)]
+        keyMappingListToShortcutList()
 
-        let rightDown = CGEvent(keyboardEventSource: nil, virtualKey: 54, keyDown: true)!
-        rightDown.flags = [.maskCommand]
-        _ = keyEvent.modifierKeyDown(rightDown)
-        XCTAssertNil(keyEvent.keyCode)
+        _ = keyEvent.modifierKeyDown(modifierEvent(55, flags: .maskCommand))
+        _ = keyEvent.modifierKeyDown(modifierEvent(56, flags: [.maskCommand, .maskShift]))
+        _ = keyEvent.modifierKeyUp(modifierEvent(56, flags: .maskCommand))
+        XCTAssertEqual(postedTaps.count, 0, "Shift has no mapping, so its release posts nothing")
 
-        let rightUp = CGEvent(keyboardEventSource: nil, virtualKey: 54, keyDown: true)!
-        _ = keyEvent.modifierKeyUp(rightUp)
-        XCTAssertNil(keyEvent.keyCode)
+        _ = keyEvent.modifierKeyUp(modifierEvent(55))
 
-        let rightDownAgain = CGEvent(keyboardEventSource: nil, virtualKey: 54, keyDown: true)!
-        rightDownAgain.flags = [.maskCommand]
-        _ = keyEvent.modifierKeyDown(rightDownAgain)
-        XCTAssertNil(keyEvent.keyCode,
-                      "re-pressing a modifier while a sibling is still held must not re-arm the lone-press gesture")
-
-        let rightUpAgain = CGEvent(keyboardEventSource: nil, virtualKey: 54, keyDown: true)!
-        let result = keyEvent.modifierKeyUp(rightUpAgain)
-        XCTAssertNotNil(result)
-        XCTAssertNil(keyEvent.keyCode, "must not fire — Left Command is still physically held")
-
-        // Left Command's eventual release must not retroactively fire either.
-        let leftUp = CGEvent(keyboardEventSource: nil, virtualKey: 55, keyDown: true)!
-        _ = keyEvent.modifierKeyUp(leftUp)
-        XCTAssertNil(keyEvent.keyCode, "cancelled gesture must not fire on Left Command's release either")
+        XCTAssertEqual(postedTaps.count, 1)
+        XCTAssertEqual(postedTaps.first?.keyCode, 102)
     }
 
-    func testRegularKeyDown_CancelsInFlightModifierGesture() {
-        // Existing behavior: keyDown()/keyUp() unconditionally reset keyCode,
-        // so a regular keystroke mid-hold cancels the lone-press gesture.
-        let modifierDown = CGEvent(keyboardEventSource: nil, virtualKey: 55, keyDown: true)!
-        modifierDown.flags = .maskCommand
-        _ = keyEvent.modifierKeyDown(modifierDown)
-        XCTAssertEqual(keyEvent.keyCode, 55)
+    func testModifierTap_EachModifierFiresIndependently() {
+        // Hold Command_L, tap Command_R, release Command_L: both taps fire
+        // their own mapping. Held siblings no longer cancel (that chord-cancel
+        // behavior broke "switch even with other modifiers held").
+        keyMappingList = [
+            KeyMapping(input: KeyboardShortcut(keyCode: 55, flags: .maskCommand),
+                       output: KeyboardShortcut(keyCode: 102)),
+            KeyMapping(input: KeyboardShortcut(keyCode: 54, flags: .maskCommand),
+                       output: KeyboardShortcut(keyCode: 104))
+        ]
+        keyMappingListToShortcutList()
 
-        let regularKey = CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: true)!
-        _ = keyEvent.keyDown(regularKey)
+        _ = keyEvent.modifierKeyDown(modifierEvent(55, flags: .maskCommand))
+        _ = keyEvent.modifierKeyDown(modifierEvent(54, flags: .maskCommand))
+        _ = keyEvent.modifierKeyUp(modifierEvent(54, flags: .maskCommand))
+        _ = keyEvent.modifierKeyUp(modifierEvent(55))
 
-        XCTAssertNil(keyEvent.keyCode, "a regular keystroke mid-hold must cancel the lone-modifier gesture")
+        XCTAssertEqual(postedTaps.map(\.keyCode), [104, 102])
+    }
+
+    func testRegularKeyDown_CancelsAllPendingTaps() {
+        // ⌘ down -> 'A' down -> ⌘ up is a shortcut, not a tap.
+        let input = KeyboardShortcut(keyCode: 55, flags: .maskCommand)
+        let output = KeyboardShortcut(keyCode: 102)
+        keyMappingList = [KeyMapping(input: input, output: output)]
+        keyMappingListToShortcutList()
+
+        _ = keyEvent.modifierKeyDown(modifierEvent(55, flags: .maskCommand))
+        _ = keyEvent.keyDown(CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: true)!)
+        XCTAssertTrue(keyEvent.pendingModifierTaps.isEmpty,
+                      "a regular keystroke mid-hold must cancel pending modifier taps")
+
+        _ = keyEvent.modifierKeyUp(modifierEvent(55))
+        XCTAssertTrue(postedTaps.isEmpty)
+    }
+
+    func testRegularKeyUp_DoesNotCancelPendingTap() {
+        // Fast-typing commit: 'A' down -> ⌘ down -> 'A' up -> ⌘ up. The
+        // up-stroke of the character typed just before the ⌘ press must not
+        // cancel the tap, or committing a conversion with ⌘ misfires.
+        let input = KeyboardShortcut(keyCode: 55, flags: .maskCommand)
+        let output = KeyboardShortcut(keyCode: 102)
+        keyMappingList = [KeyMapping(input: input, output: output)]
+        keyMappingListToShortcutList()
+
+        _ = keyEvent.keyDown(CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: true)!)
+        _ = keyEvent.modifierKeyDown(modifierEvent(55, flags: .maskCommand))
+        _ = keyEvent.keyUp(CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: false)!)
+        _ = keyEvent.modifierKeyUp(modifierEvent(55))
+
+        XCTAssertEqual(postedTaps.map(\.keyCode), [102])
+    }
+
+    func testModifierTap_DoesNotPost_WhenMappedToDisable() {
+        let input = KeyboardShortcut(keyCode: 55, flags: .maskCommand)
+        let output = KeyboardShortcut(keyCode: 999)
+        keyMappingList = [KeyMapping(input: input, output: output)]
+        keyMappingListToShortcutList()
+
+        _ = keyEvent.modifierKeyDown(modifierEvent(55, flags: .maskCommand))
+        _ = keyEvent.modifierKeyUp(modifierEvent(55))
+
+        XCTAssertTrue(postedTaps.isEmpty)
     }
 
     // MARK: - Media-key remap keyUp (stuck-key bug)
