@@ -9,6 +9,25 @@ on the `main` branch via `.github/workflows/release.yml`.
 
 ## [Unreleased]
 
+## [2.5.0] - 2026-07-06
+
+### Changed
+- **⌘ taps now switch the input source even while other modifiers are held.**
+  The chord-cancel behavior introduced in 2.4.11 (#122) treated any second held
+  modifier as a shortcut chord, so Shift+⌘ — e.g. committing a kana conversion
+  and dropping to eisu with left ⌘ — stopped working. Each modifier's tap is now
+  tracked independently: only a real key press, mouse event, or media key during
+  the hold cancels it, regardless of press/release order.
+
+### Fixed
+- **The synthesized 英数/かな key inherited still-held modifier flags** (e.g. a
+  held Shift), so the IME saw Shift+英数 and ignored the switch. Residual flags
+  are now stripped; the mapping's own output flags are preserved.
+- **Releasing the last typed character key after pressing ⌘ cancelled the tap.**
+  A character key's up-stroke no longer cancels a pending ⌘ tap, so committing a
+  conversion with ⌘ works mid-typing when the previous key is still physically
+  depressed; only a key going *down* during the hold cancels.
+
 ## [2.4.11] - 2026-07-05
 
 ### Fixed

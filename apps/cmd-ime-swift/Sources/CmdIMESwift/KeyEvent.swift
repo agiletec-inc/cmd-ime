@@ -19,16 +19,23 @@ private enum EventConversion {
 }
 
 class KeyEvent: NSObject {
-    var keyCode: CGKeyCode?
+    // Modifier keyCodes whose press is still a live "tap" candidate: nothing
+    // but modifier activity has happened since their keyDown. A release fires
+    // its mapping iff its keyCode is still in this set. Other modifiers held
+    // alongside (any press/release order) do NOT cancel a pending tap — so
+    // tapping ⌘ with Shift held still switches the IME, e.g. when committing
+    // a kana conversion. Regular keyDowns, mouse events, and media keys clear
+    // the whole set. Regular keyUps deliberately don't: fast typists still
+    // hold the last character key when they tap ⌘ to commit.
+    var pendingModifierTaps: Set<CGKeyCode> = []
+
+    // Test seam: modifierKeyUp posts the synthesized tap through this.
+    // Overridden in unit tests to capture the tap instead of emitting a
+    // system-wide event.
+    var postModifierTap: (KeyboardShortcut) -> Void = { $0.postEvent() }
+
     var isExclusionApp = false
     let bundleId = Bundle.main.infoDictionary?["CFBundleIdentifier"] as? String ?? "com.kazuki.cmdime"
-
-    // Modifier keyCodes currently physically held down, per this tap's view of
-    // the world. Used to detect chords (more than one modifier held) so a
-    // second key going down while another is already down doesn't get
-    // mistaken for a fresh lone-press gesture once the first key's slot was
-    // cancelled and released.
-    private var downModifierKeyCodes: Set<CGKeyCode> = []
 
     private var eventTap: CFMachPort?
     private var eventTapRunLoopSource: CFRunLoopSource?
@@ -111,7 +118,7 @@ class KeyEvent: NSObject {
 
     func setupEventMonitoring() {
         // Pair NSEvent + CGEvent monitors to work around a mouse-drag bug
-        // where keyCode tracking would otherwise stick.
+        // where pending-tap tracking would otherwise stick.
         // NSEvent monitors must be set up on main thread.
         let nsEventMaskList: NSEvent.EventTypeMask = [
             .leftMouseDown,
@@ -124,11 +131,11 @@ class KeyEvent: NSObject {
         ]
 
         if let m = NSEvent.addGlobalMonitorForEvents(matching: nsEventMaskList, handler: { [weak self] _ in
-            self?.keyCode = nil
+            self?.pendingModifierTaps.removeAll()
         }) { nsEventMonitors.append(m) }
 
         if let m = NSEvent.addLocalMonitorForEvents(matching: nsEventMaskList, handler: { [weak self] event in
-            self?.keyCode = nil
+            self?.pendingModifierTaps.removeAll()
             return event
         }) { nsEventMonitors.append(m) }
 
@@ -320,7 +327,7 @@ class KeyEvent: NSObject {
             return keyUp(event)
 
         default:
-            self.keyCode = nil
+            pendingModifierTaps.removeAll()
 
             return Unmanaged.passRetained(event)
         }
@@ -331,7 +338,7 @@ class KeyEvent: NSObject {
             print(KeyboardShortcut(event).toString())
         #endif
 
-        self.keyCode = nil
+        pendingModifierTaps.removeAll()
 
         switch convertedEvent(for: event) {
         case .passThrough:       return Unmanaged.passRetained(event)
@@ -341,8 +348,11 @@ class KeyEvent: NSObject {
     }
 
     func keyUp(_ event: CGEvent) -> Unmanaged<CGEvent>? {
-        self.keyCode = nil
-
+        // Deliberately does NOT cancel pending modifier taps: only a key going
+        // DOWN during the hold means the modifier was used as a shortcut. The
+        // up-stroke of a character typed just before the ⌘ press must not
+        // cancel the tap, or committing a conversion with ⌘ misfires whenever
+        // the last character key is still physically held.
         switch convertedEvent(for: event) {
         case .passThrough:       return Unmanaged.passRetained(event)
         case .disable:           return nil
@@ -355,45 +365,27 @@ class KeyEvent: NSObject {
             print(KeyboardShortcut(event).toString())
         #endif
 
-        let code = CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode))
-        downModifierKeyCodes.insert(code)
-
-        if downModifierKeyCodes.count == 1 {
-            // This is the only modifier currently held — arm the lone-press
-            // gesture for it.
-            self.keyCode = code
-        } else {
-            // A chord (e.g. both Commands held) — cancel the lone-press
-            // gesture instead of overwriting the tracked keyCode. Otherwise a
-            // later release of the newly-arrived key would fire the
-            // lone-press mapping while another modifier is still physically
-            // held. Re-pressing a key while a sibling is still held (slot
-            // already nil) must stay cancelled, not re-arm — that's exactly
-            // the case `downModifierKeyCodes.count` catches.
-            self.keyCode = nil
-        }
+        pendingModifierTaps.insert(CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode)))
         return Unmanaged.passRetained(event)
     }
 
     func modifierKeyUp(_ event: CGEvent) -> Unmanaged<CGEvent>? {
         let code = CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode))
-        // Remove defensively even if the tap missed the matching keyDown
-        // (e.g. the key was already held when the tap started).
-        downModifierKeyCodes.remove(code)
 
-        if self.keyCode == code {
-            if case .remap(let converted) = convertedEvent(for: event) {
-                KeyboardShortcut(converted).postEvent()
-            }
+        if pendingModifierTaps.remove(code) != nil,
+           let mapping = findMapping(for: event),
+           mapping.output.keyCode != 999 {
+            // Post the bare output shortcut. Residual held modifiers (e.g. a
+            // still-held Shift) must not leak into the synthesized tap, or
+            // the IME sees Shift+英数 instead of 英数 and ignores it.
+            postModifierTap(KeyboardShortcut(keyCode: mapping.output.keyCode, flags: mapping.output.flags))
         }
-
-        self.keyCode = nil
 
         return Unmanaged.passRetained(event)
     }
 
     func mediaKeyDown(_ mediaKeyEvent: MediaKeyEvent) -> Unmanaged<CGEvent>? {
-        self.keyCode = nil
+        pendingModifierTaps.removeAll()
 
         let mediaKeyCodeValue = CGKeyCode(1000 + mediaKeyEvent.keyCode)
         switch convertedEvent(for: mediaKeyEvent.event, keyCode: mediaKeyCodeValue) {
