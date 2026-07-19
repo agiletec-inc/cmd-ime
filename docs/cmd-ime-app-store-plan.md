@@ -195,6 +195,29 @@ VMとTestFlightの受け入れテストが全て通った後にのみ実施す�
 
 現時点では、VM/TestFlight/ホストMacの受け入れテストは未実施であり、設計上の候補を確定実装とみなさない。
 
+## Airis OS・Issue Loopとの境界
+
+この製品開発では、当面GitHub Issue/PR/CIを作業の正本として使う。独自のAiris OSキューや別データベースを併設して状態を二重管理しない。
+
+ただし、Airis OSのIssue Loop本体をGitHubラベルの文字列に直接結合させない。構成は以下とする。
+
+```text
+Airis OS Issue Loop core
+  ├─ Issue読込
+  ├─ Acceptance Criteriaの検証
+  ├─ 実装・独立検証・PR・CI・レビュー
+  └─ 完了判定
+          │ provider adapter
+          └─ GitHub Issues + Labels（現在）
+             GitLab Issues + Labels（将来）
+```
+
+`issue-loop`ラベルは、人間にも見える「実行キューへの投入」を示すGitHub上の投影として利用する。品質判定をラベルの有無だけで行わず、Issue本文のAcceptance Criteria、検証結果、CI、独立レビューを必須にする。
+
+Airis OSの初期セットアップまたは明示的なdoctor修復では、対象repoに必要なラベルとworkflow設定があるかを検査し、不足を冪等に整備できるようにする。通常のIssue Loop実行中に、ラベル不足を暗黙に作成して品質ゲートを迂回してはならない。
+
+GitHub以外のIssue tracker対応はprovider adapterの追加で行う。GitLab対応のために現時点で独自キューを実装しない。
+
 ## ロードマップ
 
 ### Phase 0: 設計と安全な検証基盤
@@ -203,6 +226,7 @@ VMとTestFlightの受け入れテストが全て通った後にのみ実施す�
 2. 開発用bundle IDとevent tap無効化フラグを追加
 3. Xcode単体テストを追加
 4. macOS Sandbox VMを用意
+5. Airis OSのIssue LoopではGitHubを現在のproviderとして使い、ラベル・品質ゲート・独立検証の責務を分離する
 
 ### Phase 1: 最小機能化
 
@@ -225,6 +249,13 @@ VMとTestFlightの受け入れテストが全て通った後にのみ実施す�
 2. Sandbox/TCC/IME受け入れテスト
 3. App Review提出
 4. 審査指摘をIssue化
+
+### Phase 4: Airis OS運用統合
+
+1. Issue Loop provider adapterのGitHub実装を明文化
+2. 初期セットアップ/doctorでラベルとworkflow設定を検査・冪等整備
+3. ラベルだけではIssueを完了にできない品質ゲートを追加
+4. GitHub実運用で検証後、GitLab adapterの要否を判断
 
 ## 最初のIssueドラフト
 
