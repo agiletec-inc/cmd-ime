@@ -13,9 +13,9 @@ concurrency:
 
 jobs:
   secret-scan:
-    uses: agiletec-inc/.github/.github/workflows/secret-scan.yml@main
+    uses: agiletec-inc/github-actions/.github/workflows/secret-scan.yml@main
   ci:
-    uses: agiletec-inc/.github/.github/workflows/swift-ci.yml@main
+    uses: agiletec-inc/github-actions/.github/workflows/swift-ci.yml@main
     with:
       working-directory: apps/cmd-ime-swift
       release-command: CMDIME_BUILD_MODE=local bash scripts/package.sh
