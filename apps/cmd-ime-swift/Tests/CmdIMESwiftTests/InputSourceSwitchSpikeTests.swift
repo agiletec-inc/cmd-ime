@@ -91,9 +91,11 @@ final class InputSourceSwitchSpikeTests: XCTestCase {
         let selectResult = select(id: sourceID)
         Thread.sleep(forTimeInterval: 0.3)
         let afterSelect = currentSourceID()
-        print("[\(label)] TISSelectInputSource(\(sourceID)) returned success=\(selectResult); read-back id=\(afterSelect)")
+        print("[\(label)] TISSelectInputSource(\(sourceID)) returned success=\(selectResult); " +
+              "read-back id=\(afterSelect)")
         XCTAssertTrue(selectResult, "\(label): TISSelectInputSource reported failure")
-        XCTAssertEqual(afterSelect, sourceID, "\(label): read-back did not move to the target source (stale-select suspected)")
+        XCTAssertEqual(afterSelect, sourceID,
+                       "\(label): read-back did not move to the target source (stale-select suspected)")
 
         // target -> ABC
         let backResult = select(id: abcID)
@@ -111,9 +113,13 @@ final class InputSourceSwitchSpikeTests: XCTestCase {
         let sources = (list as NSArray) as? [TISInputSource] ?? []
         for s in sources {
             guard let id = prop(s, kTISPropertyInputSourceID), id.contains(substring) else { continue }
-            print("[installed:\(substring)] id=\(id) category=\(prop(s, kTISPropertyInputSourceCategory) ?? "nil") " +
-                  "type=\(prop(s, kTISPropertyInputSourceType) ?? "nil") modeID=\(prop(s, kTISPropertyInputModeID) ?? "nil") " +
-                  "enabled=\(boolProp(s, kTISPropertyInputSourceIsEnabled)) enableCapable=\(boolProp(s, kTISPropertyInputSourceIsEnableCapable))")
+            let category = prop(s, kTISPropertyInputSourceCategory) ?? "nil"
+            let type = prop(s, kTISPropertyInputSourceType) ?? "nil"
+            let modeID = prop(s, kTISPropertyInputModeID) ?? "nil"
+            let enabled = boolProp(s, kTISPropertyInputSourceIsEnabled)
+            let enableCapable = boolProp(s, kTISPropertyInputSourceIsEnableCapable)
+            print("[installed:\(substring)] id=\(id) category=\(category) type=\(type) modeID=\(modeID) " +
+                  "enabled=\(enabled) enableCapable=\(enableCapable)")
         }
     }
 

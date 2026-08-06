@@ -5,6 +5,7 @@ final class KeyEventTests: XCTestCase {
 
     var keyEvent: KeyEvent!
     var postedTaps: [KeyboardShortcut] = []
+    var selectedInputSources: [String] = []
 
     override func setUp() {
         super.setUp()
@@ -12,6 +13,9 @@ final class KeyEventTests: XCTestCase {
         // Capture synthesized modifier taps instead of posting system-wide events.
         postedTaps = []
         keyEvent.postModifierTap = { [weak self] in self?.postedTaps.append($0) }
+        // Capture TIS selections instead of mutating real input-source state.
+        selectedInputSources = []
+        keyEvent.selectInputSourceAction = { [weak self] in self?.selectedInputSources.append($0) }
         // Reset global state
         keyMappingList = []
         shortcutList = [:]
@@ -282,6 +286,38 @@ final class KeyEventTests: XCTestCase {
         _ = keyEvent.modifierKeyUp(modifierEvent(55))
 
         XCTAssertEqual(postedTaps.map(\.keyCode), [102])
+    }
+
+    // MARK: - Output mechanism selection (#multilang): a mapping with
+    // outputInputSourceID set selects that TIS source instead of posting a
+    // key; a plain key-code output (Eisu/Kana/remap) keeps posting as before.
+
+    func testModifierTap_SelectsInputSource_WhenMappingHasOutputInputSourceID() {
+        let input = KeyboardShortcut(keyCode: 55, flags: .maskCommand)
+        let mapping = KeyMapping(
+            input: input, output: KeyboardShortcut(), outputInputSourceID: "com.apple.inputmethod.SCIM.ITABC"
+        )
+        keyMappingList = [mapping]
+        keyMappingListToShortcutList()
+
+        _ = keyEvent.modifierKeyDown(modifierEvent(55, flags: .maskCommand))
+        _ = keyEvent.modifierKeyUp(modifierEvent(55))
+
+        XCTAssertEqual(selectedInputSources, ["com.apple.inputmethod.SCIM.ITABC"])
+        XCTAssertTrue(postedTaps.isEmpty, "an input-source mapping must not also post a key")
+    }
+
+    func testModifierTap_PostsKey_WhenMappingHasNoOutputInputSourceID() {
+        let input = KeyboardShortcut(keyCode: 55, flags: .maskCommand)
+        let output = KeyboardShortcut(keyCode: 102)
+        keyMappingList = [KeyMapping(input: input, output: output)]
+        keyMappingListToShortcutList()
+
+        _ = keyEvent.modifierKeyDown(modifierEvent(55, flags: .maskCommand))
+        _ = keyEvent.modifierKeyUp(modifierEvent(55))
+
+        XCTAssertEqual(postedTaps.map(\.keyCode), [102])
+        XCTAssertTrue(selectedInputSources.isEmpty, "a key-post mapping must not also select an input source")
     }
 
     func testModifierTap_DoesNotPost_WhenMappedToDisable() {

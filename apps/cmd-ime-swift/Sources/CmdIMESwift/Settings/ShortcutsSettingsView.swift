@@ -29,6 +29,14 @@ struct ShortcutsSettingsView: View {
         (L("shortcuts.actionDisableKey"), KeyboardShortcut(keyCode: 999)),
     ]
 
+    // Installed non-Japanese input sources (Pinyin, Korean, ...) the user can
+    // assign a key to switch to via TIS instead of a key post — see
+    // InputSourceCatalog. Read once per view lifetime; a live picker would
+    // need to react to input sources being added/removed in System Settings
+    // while this view is open, which this app doesn't currently support for
+    // any other list either (e.g. exclusion apps).
+    private let inputSourceOptions = InputSourceCatalog.selectableKeyboardSources()
+
     var body: some View {
         VStack(spacing: 8) {
             Text(L("shortcuts.description"))
@@ -58,7 +66,7 @@ struct ShortcutsSettingsView: View {
                         HStack(spacing: 12) {
                             inputCell(label: mapping.input.toString(), index: index)
                             Image(systemName: "arrow.right").foregroundStyle(.secondary)
-                            actionCell(shortcut: mapping.output, index: index)
+                            actionCell(mapping: mapping, index: index)
                             if Self.isShadowed(settings.keyMappings, at: index) {
                                 Image(systemName: "exclamationmark.triangle")
                                     .foregroundStyle(.orange)
@@ -120,24 +128,42 @@ struct ShortcutsSettingsView: View {
     }
 
     @ViewBuilder
-    private func actionCell(shortcut: KeyboardShortcut, index: Int) -> some View {
+    private func actionCell(mapping: KeyMapping, index: Int) -> some View {
+        let shortcut = mapping.output
+        let selectedSourceID = mapping.outputInputSourceID
+
         Menu {
             ForEach(Self.actionPresets, id: \.label) { preset in
                 Button {
                     settings.updateKeyMapping(at: index, output: preset.shortcut)
                 } label: {
-                    if shortcut.keyCode == preset.shortcut.keyCode {
+                    if selectedSourceID == nil && shortcut.keyCode == preset.shortcut.keyCode {
                         Label(preset.label, systemImage: "checkmark")
                     } else {
                         Text(preset.label)
                     }
                 }
             }
+            if !inputSourceOptions.isEmpty {
+                Menu(L("shortcuts.actionSwitchToInputSource")) {
+                    ForEach(inputSourceOptions) { option in
+                        Button {
+                            settings.updateKeyMappingOutputSource(at: index, sourceID: option.id)
+                        } label: {
+                            if selectedSourceID == option.id {
+                                Label(option.localizedName, systemImage: "checkmark")
+                            } else {
+                                Text(option.localizedName)
+                            }
+                        }
+                    }
+                }
+            }
         } label: {
             HStack(spacing: 6) {
-                Text(actionLabel(for: shortcut))
+                Text(actionLabel(for: mapping))
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .foregroundStyle(shortcut.keyCode == 0 ? Color.secondary : Color.primary)
+                    .foregroundStyle(selectedSourceID == nil && shortcut.keyCode == 0 ? Color.secondary : Color.primary)
                 Image(systemName: "chevron.up.chevron.down")
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
@@ -148,8 +174,12 @@ struct ShortcutsSettingsView: View {
         .help(Text(L("shortcuts.actionHelp")))
     }
 
-    private func actionLabel(for shortcut: KeyboardShortcut) -> String {
-        Self.actionPresets.first(where: { $0.shortcut.keyCode == shortcut.keyCode })?.label
+    private func actionLabel(for mapping: KeyMapping) -> String {
+        if let sourceID = mapping.outputInputSourceID {
+            return inputSourceOptions.first(where: { $0.id == sourceID })?.localizedName ?? sourceID
+        }
+        let shortcut = mapping.output
+        return Self.actionPresets.first(where: { $0.shortcut.keyCode == shortcut.keyCode })?.label
             ?? (shortcut.toString().isEmpty ? L("shortcuts.actionColumnHeader") : shortcut.toString())
     }
 

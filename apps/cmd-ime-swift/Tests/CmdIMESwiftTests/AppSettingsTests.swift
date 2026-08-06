@@ -113,6 +113,34 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertTrue(settings.keyMappings[index].enable, "both sides are now set")
     }
 
+    func testUpdateKeyMappingOutputSourcePersistsAndEnablesRow() {
+        let settings = AppSettings(defaults: defaults)
+        settings.addKeyMapping()
+        let index = settings.keyMappings.count - 1
+        settings.updateKeyMapping(at: index, input: KeyboardShortcut(keyCode: 54))
+
+        settings.updateKeyMappingOutputSource(at: index, sourceID: "com.apple.inputmethod.SCIM.ITABC")
+
+        XCTAssertEqual(settings.keyMappings[index].outputInputSourceID, "com.apple.inputmethod.SCIM.ITABC")
+        XCTAssertTrue(settings.keyMappings[index].enable, "input is set, so the row goes live")
+
+        let stored = defaults.object(forKey: "mappings") as? [[AnyHashable: Any]]
+        XCTAssertEqual(stored?.last?["outputInputSourceID"] as? String, "com.apple.inputmethod.SCIM.ITABC")
+    }
+
+    func testUpdateKeyMappingOutputClearsPreviouslySetInputSource() {
+        let settings = AppSettings(defaults: defaults)
+        settings.addKeyMapping()
+        let index = settings.keyMappings.count - 1
+        settings.updateKeyMapping(at: index, input: KeyboardShortcut(keyCode: 54))
+        settings.updateKeyMappingOutputSource(at: index, sourceID: "com.apple.inputmethod.SCIM.ITABC")
+
+        settings.updateKeyMapping(at: index, output: KeyboardShortcut(keyCode: 104))
+
+        XCTAssertNil(settings.keyMappings[index].outputInputSourceID,
+                     "choosing a key-post action must clear the mutually exclusive input-source action")
+    }
+
     func testRemoveKeyMappingPersistsRemoval() {
         let settings = AppSettings(defaults: defaults)
         settings.removeKeyMapping(at: 0)

@@ -20,6 +20,35 @@ final class KeyMappingTests: XCTestCase {
         XCTAssertEqual(restored?.enable, true)
     }
 
+    func testOutputInputSourceIDRoundTrips() {
+        let mapping = KeyMapping(
+            input: KeyboardShortcut(keyCode: 54, flags: .maskCommand),
+            output: KeyboardShortcut(),
+            enable: true,
+            outputInputSourceID: "com.apple.inputmethod.Korean.2SetKorean"
+        )
+
+        let restored = KeyMapping(dictionary: mapping.toDictionary())
+
+        XCTAssertEqual(restored?.outputInputSourceID, "com.apple.inputmethod.Korean.2SetKorean")
+    }
+
+    func testOutputInputSourceIDAbsentByDefaultAndOnLegacyDictionaries() {
+        // Fresh mapping: nil until explicitly set.
+        XCTAssertNil(KeyMapping().outputInputSourceID)
+
+        // A dictionary persisted before this field existed has no such key.
+        let legacyDictionary: [AnyHashable: Any] = [
+            "input": KeyboardShortcut(keyCode: 55).toDictionary(),
+            "output": KeyboardShortcut(keyCode: 102).toDictionary(),
+            "enable": true
+        ]
+        let restored = KeyMapping(dictionary: legacyDictionary)
+
+        XCTAssertNotNil(restored)
+        XCTAssertNil(restored?.outputInputSourceID)
+    }
+
     // SwiftUI ForEach must key on a stable per-instance id, never the array
     // index — distinct mappings must never collide, and an id must not change
     // across mutation/persistence round-trips.
