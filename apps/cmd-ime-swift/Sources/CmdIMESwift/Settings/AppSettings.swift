@@ -37,6 +37,7 @@ final class AppSettings: ObservableObject {
     }
 
     private let defaults: UserDefaults
+    private let loginItemService: LoginItemService
 
     @Published var launchAtStartup: Bool
     @Published var showMenuBarIcon: Bool
@@ -49,8 +50,9 @@ final class AppSettings: ObservableObject {
     private var cancellables: Set<AnyCancellable> = []
     private var isApplyingExternalUpdate = false
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard, loginItemService: LoginItemService = SMAppService.mainApp) {
         self.defaults = defaults
+        self.loginItemService = loginItemService
 
         Self.migrateLegacyKeys(in: defaults)
 
@@ -60,7 +62,7 @@ final class AppSettings: ObservableObject {
         self.quitOnCommandQ = (defaults.object(forKey: Keys.quitOnCommandQ) as? Int ?? 0) != 0
 
         let stored = (defaults.object(forKey: Keys.launchAtStartup) as? Int ?? 0) != 0
-        let serviceEnabled = SMAppService.mainApp.status == .enabled
+        let serviceEnabled = loginItemService.status == .enabled
         self.launchAtStartup = stored || serviceEnabled
 
         self.keyMappings = Self.loadKeyMappings(from: defaults)
@@ -74,13 +76,13 @@ final class AppSettings: ObservableObject {
     /// Call once on app launch to reconcile any drift between SMAppService
     /// (the OS-side login item registry) and our stored toggle.
     func bootstrap() {
-        let serviceEnabled = SMAppService.mainApp.status == .enabled
+        let serviceEnabled = loginItemService.status == .enabled
         if launchAtStartup && !serviceEnabled {
             // Stored intent is "on" but the OS is not enabled. Which way to
             // resolve this depends on *why* the service isn't enabled, so
             // switch on the actual status instead of treating every
             // non-enabled state the same:
-            switch SMAppService.mainApp.status {
+            switch loginItemService.status {
             case .requiresApproval:
                 // The item IS registered with SMAppService, but the user
                 // disabled it (or hasn't approved it yet) in System
@@ -105,7 +107,7 @@ final class AppSettings: ObservableObject {
                 // SMAppService registration. Honor the stored intent and
                 // register now — this restores the pre-fix behavior for
                 // this specific case only.
-                setLaunchAtStartup(true)
+                setLaunchAtStartup(true, service: loginItemService)
             }
         } else if !launchAtStartup && serviceEnabled {
             // OS already registered us (e.g. enabled in System Settings) but
@@ -163,7 +165,7 @@ final class AppSettings: ObservableObject {
             .sink { [weak self] newValue in
                 guard let self = self, !self.isApplyingExternalUpdate else { return }
                 self.defaults.set(newValue ? 1 : 0, forKey: Keys.launchAtStartup)
-                if !setLaunchAtStartup(newValue) {
+                if !setLaunchAtStartup(newValue, service: self.loginItemService) {
                     self.isApplyingExternalUpdate = true
                     self.launchAtStartup = !newValue
                     self.defaults.set(!newValue ? 1 : 0, forKey: Keys.launchAtStartup)
