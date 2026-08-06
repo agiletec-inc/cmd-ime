@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>alert.openSystemSettings</key>
+	<string>システム設定を開く</string>
+	<key>alert.tapFailureBody</key>
+	<string>システム設定 → プライバシーとセキュリティ → アクセシビリティを開き、⌘IMEが表示されている場合は削除してから再度追加し、アプリを再起動してください。</string>
+	<key>alert.tapFailureTitle</key>
+	<string>⌘IMEはキーボードリスナーを開始できませんでした</string>
+	<key>exclusions.addAppButton</key>
+	<string>アプリを追加…</string>
+	<key>exclusions.addAppHelp</key>
+	<string>除外するアプリを選択します</string>
+	<key>exclusions.description</key>
+	<string>これらのアプリが最前面にあるとき、⌘IMEはキーの割り当てを行いません。</string>
+	<key>exclusions.emptyExcluded</key>
+	<string>まだ除外されたアプリはありません。</string>
+	<key>exclusions.emptyRecent</key>
+	<string>他のアプリに切り替えてから戻ると、このリストに表示されます。</string>
+	<key>exclusions.excludedHeader</key>
+	<string>除外中</string>
+	<key>exclusions.openPanelMessage</key>
+	<string>⌘IMEのキー割り当てから除外するアプリを選択してください</string>
+	<key>exclusions.openPanelPrompt</key>
+	<string>追加</string>
+	<key>exclusions.recentHeader</key>
+	<string>最近使用したアプリ</string>
+	<key>general.aboutSection</key>
+	<string>このアプリについて</string>
+	<key>general.checkForUpdatesOnLaunch</key>
+	<string>起動時にアップデートを確認</string>
+	<key>general.checkNow</key>
+	<string>今すぐ確認</string>
+	<key>general.githubLink</key>
+	<string>GitHub</string>
+	<key>general.inputSwitchingSection</key>
+	<string>入力切り替え</string>
+	<key>general.issuesLink</key>
+	<string>Issue</string>
+	<key>general.launchAtLogin</key>
+	<string>ログイン時に開く</string>
+	<key>general.licenseFootnote</key>
+	<string>MITライセンス · iMasanariによるオリジナル cmd-eikana をベースにしています</string>
+	<key>general.licenseLink</key>
+	<string>ライセンス</string>
+	<key>general.modeOff</key>
+	<string>オフ</string>
+	<key>general.modeOffDescription</key>
+	<string>自動切り替えは行いません。アプリを切り替えても入力ソースはそのまま維持されます。</string>
+	<key>general.modePerApp</key>
+	<string>アプリごと</string>
+	<key>general.modePerAppDescription</key>
+	<string>アプリごとに入力ソースを記憶し、切り替え時に復元します。</string>
+	<key>general.modePickerLabel</key>
+	<string>モード</string>
+	<key>general.modeSmart</key>
+	<string>スマート</string>
+	<key>general.modeSmartDescription</key>
+	<string>アプリごとの記憶に加え、URLバーや電話番号・メール・郵便番号欄では自動的に英数入力に切り替えます。（ベータ）</string>
+	<key>general.quitWithCmdQ</key>
+	<string>⌘Qで⌘IMEを終了</string>
+	<key>general.quitWithCmdQFootnote</key>
+	<string>オフの場合、⌘Qはこのウインドウを閉じるだけで、⌘IMEはメニューバーで動作し続けます。メニューバーアイコンからいつでも終了できます。</string>
+	<key>general.showMenuBarIcon</key>
+	<string>メニューバーアイコンを表示</string>
+	<key>general.versionFormat</key>
+	<string>バージョン %@</string>
+	<key>general.versionShortFormat</key>
+	<string>v%@</string>
+	<key>keyRecorder.cancel</key>
+	<string>キャンセル</string>
+	<key>keyRecorder.placeholder</key>
+	<string>キーを押してください…</string>
+	<key>keyRecorder.save</key>
+	<string>保存</string>
+	<key>menu.checkForUpdates</key>
+	<string>アップデートを確認…</string>
+	<key>menu.close</key>
+	<string>閉じる</string>
+	<key>menu.copy</key>
+	<string>コピー</string>
+	<key>menu.cut</key>
+	<string>カット</string>
+	<key>menu.edit</key>
+	<string>編集</string>
+	<key>menu.minimize</key>
+	<string>しまう</string>
+	<key>menu.paste</key>
+	<string>ペースト</string>
+	<key>menu.preferencesTitle</key>
+	<string>⌘IME %@ — 環境設定…</string>
+	<key>menu.quit</key>
+	<string>終了</string>
+	<key>menu.quitApp</key>
+	<string>⌘IMEを終了</string>
+	<key>menu.restart</key>
+	<string>再起動</string>
+	<key>menu.selectAll</key>
+	<string>すべてを選択</string>
+	<key>menu.window</key>
+	<string>ウインドウ</string>
+	<key>notification.updateAvailableBody</key>
+	<string>v%@ をインストールできます</string>
+	<key>notification.updateAvailableTitle</key>
+	<string>⌘IMEの新しいバージョンがあります</string>
+	<key>settingsTabs.exclusions</key>
+	<string>除外設定</string>
+	<key>settingsTabs.general</key>
+	<string>一般</string>
+	<key>settingsTabs.shortcuts</key>
+	<string>ショートカット</string>
+	<key>shortcuts.actionColumnHeader</key>
+	<string>アクション</string>
+	<key>shortcuts.actionDisableKey</key>
+	<string>キーを無効化</string>
+	<key>shortcuts.actionHelp</key>
+	<string>このキーを押したときの動作を選択します</string>
+	<key>shortcuts.actionSwitchToAlphanumeric</key>
+	<string>英数に切り替え</string>
+	<key>shortcuts.actionSwitchToKana</key>
+	<string>かなに切り替え</string>
+	<key>shortcuts.addButton</key>
+	<string>追加</string>
+	<key>shortcuts.description</key>
+	<string>キー：割り込むホットキーです。アクション：そのキーを押したときの動作です。</string>
+	<key>shortcuts.inputHelp</key>
+	<string>割り込むホットキーを選択します</string>
+	<key>shortcuts.inputPlaceholder</key>
+	<string>入力</string>
+	<key>shortcuts.keyColumnHeader</key>
+	<string>キー</string>
+	<key>shortcuts.presetCapsLock</key>
+	<string>⇪  (Caps Lock)</string>
+	<key>shortcuts.presetEisu</key>
+	<string>英数  (Eisu / Alphanumeric)</string>
+	<key>shortcuts.presetKana</key>
+	<string>かな  (Kana)</string>
+	<key>shortcuts.presetLeftCommand</key>
+	<string>左⌘  (左Command)</string>
+	<key>shortcuts.presetLeftControl</key>
+	<string>左⌃  (左Control)</string>
+	<key>shortcuts.presetLeftOption</key>
+	<string>左⌥  (左Option)</string>
+	<key>shortcuts.presetLeftShift</key>
+	<string>左⇧  (左Shift)</string>
+	<key>shortcuts.presetRightCommand</key>
+	<string>右⌘  (右Command)</string>
+	<key>shortcuts.presetRightControl</key>
+	<string>右⌃  (右Control)</string>
+	<key>shortcuts.presetRightOption</key>
+	<string>右⌥  (右Option)</string>
+	<key>shortcuts.presetRightShift</key>
+	<string>右⇧  (右Shift)</string>
+	<key>shortcuts.removeHelp</key>
+	<string>このマッピングを削除します</string>
+	<key>shortcuts.shadowedHelp</key>
+	<string>同じ入力を持つ前のマッピングによって無効化されています</string>
+</dict>
+</plist>

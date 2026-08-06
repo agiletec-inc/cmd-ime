@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>alert.openSystemSettings</key>
+	<string>시스템 설정 열기</string>
+	<key>alert.tapFailureBody</key>
+	<string>시스템 설정 → 개인정보 보호 및 보안 → 손쉬운 사용을 열고, 목록에 ⌘IME가 있으면 제거한 다음 다시 추가하고 앱을 재시작하세요.</string>
+	<key>alert.tapFailureTitle</key>
+	<string>⌘IME가 키보드 리스너를 시작할 수 없습니다</string>
+	<key>exclusions.addAppButton</key>
+	<string>앱 추가…</string>
+	<key>exclusions.addAppHelp</key>
+	<string>제외할 설치된 앱을 선택하세요</string>
+	<key>exclusions.description</key>
+	<string>이 앱들이 맨 앞에 있을 때는 ⌘IME가 키를 다시 매핑하지 않습니다.</string>
+	<key>exclusions.emptyExcluded</key>
+	<string>아직 제외된 앱이 없습니다.</string>
+	<key>exclusions.emptyRecent</key>
+	<string>다른 앱으로 전환했다가 돌아오면 이 목록이 채워집니다.</string>
+	<key>exclusions.excludedHeader</key>
+	<string>제외됨</string>
+	<key>exclusions.openPanelMessage</key>
+	<string>⌘IME 키 재매핑에서 제외할 앱을 선택하세요</string>
+	<key>exclusions.openPanelPrompt</key>
+	<string>추가</string>
+	<key>exclusions.recentHeader</key>
+	<string>최근 사용한 앱</string>
+	<key>general.aboutSection</key>
+	<string>정보</string>
+	<key>general.checkForUpdatesOnLaunch</key>
+	<string>시작할 때 업데이트 확인</string>
+	<key>general.checkNow</key>
+	<string>지금 확인</string>
+	<key>general.githubLink</key>
+	<string>GitHub</string>
+	<key>general.inputSwitchingSection</key>
+	<string>입력 전환</string>
+	<key>general.issuesLink</key>
+	<string>이슈</string>
+	<key>general.launchAtLogin</key>
+	<string>로그인 시 열기</string>
+	<key>general.licenseFootnote</key>
+	<string>MIT 라이선스 · iMasanari의 원본 cmd-eikana를 기반으로 함</string>
+	<key>general.licenseLink</key>
+	<string>라이선스</string>
+	<key>general.modeOff</key>
+	<string>끄기</string>
+	<key>general.modeOffDescription</key>
+	<string>자동으로 전환하지 않습니다. 앱을 전환해도 입력 소스가 그대로 유지됩니다.</string>
+	<key>general.modePerApp</key>
+	<string>앱별</string>
+	<key>general.modePerAppDescription</key>
+	<string>앱마다 입력 소스를 기억했다가 전환할 때 복원합니다.</string>
+	<key>general.modePickerLabel</key>
+	<string>모드</string>
+	<key>general.modeSmart</key>
+	<string>스마트</string>
+	<key>general.modeSmartDescription</key>
+	<string>앱별 기억 기능에 더해 URL 입력란, 전화번호, 이메일, 우편번호 필드에서는 자동으로 영숫자 입력으로 전환합니다. (베타)</string>
+	<key>general.quitWithCmdQ</key>
+	<string>⌘Q로 ⌘IME 종료</string>
+	<key>general.quitWithCmdQFootnote</key>
+	<string>꺼져 있으면 ⌘Q는 이 창만 닫고 ⌘IME는 메뉴 막대에서 계속 실행됩니다. 메뉴 막대 아이콘에서 언제든지 종료할 수 있습니다.</string>
+	<key>general.showMenuBarIcon</key>
+	<string>메뉴 막대 아이콘 보기</string>
+	<key>general.versionFormat</key>
+	<string>버전 %@</string>
+	<key>general.versionShortFormat</key>
+	<string>v%@</string>
+	<key>keyRecorder.cancel</key>
+	<string>취소</string>
+	<key>keyRecorder.placeholder</key>
+	<string>키를 누르세요…</string>
+	<key>keyRecorder.save</key>
+	<string>저장</string>
+	<key>menu.checkForUpdates</key>
+	<string>업데이트 확인…</string>
+	<key>menu.close</key>
+	<string>닫기</string>
+	<key>menu.copy</key>
+	<string>복사하기</string>
+	<key>menu.cut</key>
+	<string>잘라내기</string>
+	<key>menu.edit</key>
+	<string>편집</string>
+	<key>menu.minimize</key>
+	<string>Dock에 넣기</string>
+	<key>menu.paste</key>
+	<string>붙여넣기</string>
+	<key>menu.preferencesTitle</key>
+	<string>⌘IME %@ — 환경설정…</string>
+	<key>menu.quit</key>
+	<string>종료</string>
+	<key>menu.quitApp</key>
+	<string>⌘IME 종료</string>
+	<key>menu.restart</key>
+	<string>다시 시작</string>
+	<key>menu.selectAll</key>
+	<string>모두 선택</string>
+	<key>menu.window</key>
+	<string>윈도우</string>
+	<key>notification.updateAvailableBody</key>
+	<string>버전 %@을(를) 설치할 수 있습니다</string>
+	<key>notification.updateAvailableTitle</key>
+	<string>⌘IME 업데이트가 있습니다</string>
+	<key>settingsTabs.exclusions</key>
+	<string>제외 항목</string>
+	<key>settingsTabs.general</key>
+	<string>일반</string>
+	<key>settingsTabs.shortcuts</key>
+	<string>단축키</string>
+	<key>shortcuts.actionColumnHeader</key>
+	<string>동작</string>
+	<key>shortcuts.actionDisableKey</key>
+	<string>키 비활성화</string>
+	<key>shortcuts.actionHelp</key>
+	<string>이 키를 눌렀을 때 실행할 작업을 선택하세요</string>
+	<key>shortcuts.actionSwitchToAlphanumeric</key>
+	<string>영숫자로 전환</string>
+	<key>shortcuts.actionSwitchToKana</key>
+	<string>가나로 전환</string>
+	<key>shortcuts.addButton</key>
+	<string>추가</string>
+	<key>shortcuts.description</key>
+	<string>키: 가로챌 단축키입니다. 동작: 해당 키를 눌렀을 때 실행할 작업입니다.</string>
+	<key>shortcuts.inputHelp</key>
+	<string>가로챌 단축키를 선택하세요</string>
+	<key>shortcuts.inputPlaceholder</key>
+	<string>입력</string>
+	<key>shortcuts.keyColumnHeader</key>
+	<string>키</string>
+	<key>shortcuts.presetCapsLock</key>
+	<string>⇪  (Caps Lock)</string>
+	<key>shortcuts.presetEisu</key>
+	<string>英数  (Eisu / Alphanumeric)</string>
+	<key>shortcuts.presetKana</key>
+	<string>かな  (Kana)</string>
+	<key>shortcuts.presetLeftCommand</key>
+	<string>왼쪽 ⌘  (왼쪽 Command)</string>
+	<key>shortcuts.presetLeftControl</key>
+	<string>왼쪽 ⌃  (왼쪽 Control)</string>
+	<key>shortcuts.presetLeftOption</key>
+	<string>왼쪽 ⌥  (왼쪽 Option)</string>
+	<key>shortcuts.presetLeftShift</key>
+	<string>왼쪽 ⇧  (왼쪽 Shift)</string>
+	<key>shortcuts.presetRightCommand</key>
+	<string>오른쪽 ⌘  (오른쪽 Command)</string>
+	<key>shortcuts.presetRightControl</key>
+	<string>오른쪽 ⌃  (오른쪽 Control)</string>
+	<key>shortcuts.presetRightOption</key>
+	<string>오른쪽 ⌥  (오른쪽 Option)</string>
+	<key>shortcuts.presetRightShift</key>
+	<string>오른쪽 ⇧  (오른쪽 Shift)</string>
+	<key>shortcuts.removeHelp</key>
+	<string>이 매핑 제거</string>
+	<key>shortcuts.shadowedHelp</key>
+	<string>동일한 입력을 가진 이전 매핑에 가려졌습니다</string>
+</dict>
+</plist>

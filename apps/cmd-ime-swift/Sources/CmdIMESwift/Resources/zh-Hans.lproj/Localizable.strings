@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>alert.openSystemSettings</key>
+	<string>打开系统设置</string>
+	<key>alert.tapFailureBody</key>
+	<string>打开系统设置 → 隐私与安全性 → 辅助功能，如果列表中有 ⌘IME，请先移除再重新添加，然后重新启动应用。</string>
+	<key>alert.tapFailureTitle</key>
+	<string>⌘IME 无法启动键盘监听</string>
+	<key>exclusions.addAppButton</key>
+	<string>添加应用…</string>
+	<key>exclusions.addAppHelp</key>
+	<string>选择要排除的已安装应用</string>
+	<key>exclusions.description</key>
+	<string>当这些应用位于最前面时，⌘IME 不会重新映射按键。</string>
+	<key>exclusions.emptyExcluded</key>
+	<string>目前没有已排除的应用。</string>
+	<key>exclusions.emptyRecent</key>
+	<string>切换到其他应用后再返回，此列表将会自动填充。</string>
+	<key>exclusions.excludedHeader</key>
+	<string>已排除</string>
+	<key>exclusions.openPanelMessage</key>
+	<string>选择要从 ⌘IME 按键重映射中排除的应用</string>
+	<key>exclusions.openPanelPrompt</key>
+	<string>添加</string>
+	<key>exclusions.recentHeader</key>
+	<string>最近使用</string>
+	<key>general.aboutSection</key>
+	<string>关于</string>
+	<key>general.checkForUpdatesOnLaunch</key>
+	<string>启动时检查更新</string>
+	<key>general.checkNow</key>
+	<string>立即检查</string>
+	<key>general.githubLink</key>
+	<string>GitHub</string>
+	<key>general.inputSwitchingSection</key>
+	<string>输入切换</string>
+	<key>general.issuesLink</key>
+	<string>议题</string>
+	<key>general.launchAtLogin</key>
+	<string>登录时打开</string>
+	<key>general.licenseFootnote</key>
+	<string>MIT 许可证 · 基于 iMasanari 的原始项目 cmd-eikana</string>
+	<key>general.licenseLink</key>
+	<string>许可证</string>
+	<key>general.modeOff</key>
+	<string>关闭</string>
+	<key>general.modeOffDescription</key>
+	<string>不自动切换。切换应用时输入源保持不变。</string>
+	<key>general.modePerApp</key>
+	<string>按应用</string>
+	<key>general.modePerAppDescription</key>
+	<string>为每个应用记住并恢复输入源，切换时自动还原。</string>
+	<key>general.modePickerLabel</key>
+	<string>模式</string>
+	<key>general.modeSmart</key>
+	<string>智能</string>
+	<key>general.modeSmartDescription</key>
+	<string>在按应用记忆的基础上，还会在网址栏、电话、邮箱和邮编等输入框中自动切换为英数输入。（测试版）</string>
+	<key>general.quitWithCmdQ</key>
+	<string>使用 ⌘Q 退出 ⌘IME</string>
+	<key>general.quitWithCmdQFootnote</key>
+	<string>关闭时，⌘Q 仅关闭此窗口，⌘IME 会继续在菜单栏中运行。您可以随时从菜单栏图标退出。</string>
+	<key>general.showMenuBarIcon</key>
+	<string>在菜单栏中显示图标</string>
+	<key>general.versionFormat</key>
+	<string>版本 %@</string>
+	<key>general.versionShortFormat</key>
+	<string>v%@</string>
+	<key>keyRecorder.cancel</key>
+	<string>取消</string>
+	<key>keyRecorder.placeholder</key>
+	<string>请按下一个键…</string>
+	<key>keyRecorder.save</key>
+	<string>存储</string>
+	<key>menu.checkForUpdates</key>
+	<string>检查更新…</string>
+	<key>menu.close</key>
+	<string>关闭</string>
+	<key>menu.copy</key>
+	<string>拷贝</string>
+	<key>menu.cut</key>
+	<string>剪切</string>
+	<key>menu.edit</key>
+	<string>编辑</string>
+	<key>menu.minimize</key>
+	<string>缩小</string>
+	<key>menu.paste</key>
+	<string>粘贴</string>
+	<key>menu.preferencesTitle</key>
+	<string>⌘IME %@ — 偏好设置…</string>
+	<key>menu.quit</key>
+	<string>退出</string>
+	<key>menu.quitApp</key>
+	<string>退出 ⌘IME</string>
+	<key>menu.restart</key>
+	<string>重新启动</string>
+	<key>menu.selectAll</key>
+	<string>全选</string>
+	<key>menu.window</key>
+	<string>窗口</string>
+	<key>notification.updateAvailableBody</key>
+	<string>版本 %@ 已可安装</string>
+	<key>notification.updateAvailableTitle</key>
+	<string>⌘IME 有可用更新</string>
+	<key>settingsTabs.exclusions</key>
+	<string>排除项</string>
+	<key>settingsTabs.general</key>
+	<string>通用</string>
+	<key>settingsTabs.shortcuts</key>
+	<string>快捷键</string>
+	<key>shortcuts.actionColumnHeader</key>
+	<string>动作</string>
+	<key>shortcuts.actionDisableKey</key>
+	<string>禁用按键</string>
+	<key>shortcuts.actionHelp</key>
+	<string>选择按下此键时执行的操作</string>
+	<key>shortcuts.actionSwitchToAlphanumeric</key>
+	<string>切换到英数</string>
+	<key>shortcuts.actionSwitchToKana</key>
+	<string>切换到假名</string>
+	<key>shortcuts.addButton</key>
+	<string>添加</string>
+	<key>shortcuts.description</key>
+	<string>按键：要拦截的快捷键。动作：按下该键时执行的操作。</string>
+	<key>shortcuts.inputHelp</key>
+	<string>选择要拦截的快捷键</string>
+	<key>shortcuts.inputPlaceholder</key>
+	<string>输入</string>
+	<key>shortcuts.keyColumnHeader</key>
+	<string>按键</string>
+	<key>shortcuts.presetCapsLock</key>
+	<string>⇪  (大写锁定)</string>
+	<key>shortcuts.presetEisu</key>
+	<string>英数  (Eisu / Alphanumeric)</string>
+	<key>shortcuts.presetKana</key>
+	<string>かな  (Kana)</string>
+	<key>shortcuts.presetLeftCommand</key>
+	<string>左⌘  (左 Command)</string>
+	<key>shortcuts.presetLeftControl</key>
+	<string>左⌃  (左 Control)</string>
+	<key>shortcuts.presetLeftOption</key>
+	<string>左⌥  (左 Option)</string>
+	<key>shortcuts.presetLeftShift</key>
+	<string>左⇧  (左 Shift)</string>
+	<key>shortcuts.presetRightCommand</key>
+	<string>右⌘  (右 Command)</string>
+	<key>shortcuts.presetRightControl</key>
+	<string>右⌃  (右 Control)</string>
+	<key>shortcuts.presetRightOption</key>
+	<string>右⌥  (右 Option)</string>
+	<key>shortcuts.presetRightShift</key>
+	<string>右⇧  (右 Shift)</string>
+	<key>shortcuts.removeHelp</key>
+	<string>移除此映射</string>
+	<key>shortcuts.shadowedHelp</key>
+	<string>被具有相同输入的更早映射所覆盖</string>
+</dict>
+</plist>

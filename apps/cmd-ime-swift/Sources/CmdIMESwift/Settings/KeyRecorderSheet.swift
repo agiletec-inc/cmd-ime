@@ -39,7 +39,7 @@ struct KeyRecorderSheet: View {
         VStack(spacing: 20) {
             Text(title).font(.headline)
 
-            Text(captured.toString().isEmpty ? "Press a key…" : captured.toString())
+            Text(captured.toString().isEmpty ? L("keyRecorder.placeholder") : captured.toString())
                 .font(.system(size: 32, weight: .medium, design: .rounded))
                 .frame(maxWidth: .infinity, minHeight: 80)
                 .background(
@@ -48,10 +48,10 @@ struct KeyRecorderSheet: View {
                 )
 
             HStack {
-                Button("Cancel") { dismiss() }
+                Button(L("keyRecorder.cancel")) { dismiss() }
                     .keyboardShortcut(.cancelAction)
                 Spacer()
-                Button("Save") {
+                Button(L("keyRecorder.save")) {
                     onCommit(captured)
                     dismiss()
                 }

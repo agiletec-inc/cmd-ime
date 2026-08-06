@@ -10,41 +10,41 @@ struct ShortcutsSettingsView: View {
 
     // Common input keys — includes IME-only keys that can't be recorded on English keyboards.
     private static let inputPresets: [(label: String, shortcut: KeyboardShortcut)] = [
-        ("Left ⌘  (Left Command)", KeyboardShortcut(keyCode: 55)),
-        ("Right ⌘  (Right Command)", KeyboardShortcut(keyCode: 54)),
-        ("英数  (Eisu / Alphanumeric)", KeyboardShortcut(keyCode: 102)),
-        ("かな  (Kana)", KeyboardShortcut(keyCode: 104)),
-        ("⇪  (Caps Lock)", KeyboardShortcut(keyCode: 57)),
-        ("Left ⇧  (Left Shift)", KeyboardShortcut(keyCode: 56)),
-        ("Right ⇧  (Right Shift)", KeyboardShortcut(keyCode: 60)),
-        ("Left ⌥  (Left Option)", KeyboardShortcut(keyCode: 58)),
-        ("Right ⌥  (Right Option)", KeyboardShortcut(keyCode: 61)),
-        ("Left ⌃  (Left Control)", KeyboardShortcut(keyCode: 59)),
-        ("Right ⌃  (Right Control)", KeyboardShortcut(keyCode: 62)),
+        (L("shortcuts.presetLeftCommand"), KeyboardShortcut(keyCode: 55)),
+        (L("shortcuts.presetRightCommand"), KeyboardShortcut(keyCode: 54)),
+        (L("shortcuts.presetEisu"), KeyboardShortcut(keyCode: 102)),
+        (L("shortcuts.presetKana"), KeyboardShortcut(keyCode: 104)),
+        (L("shortcuts.presetCapsLock"), KeyboardShortcut(keyCode: 57)),
+        (L("shortcuts.presetLeftShift"), KeyboardShortcut(keyCode: 56)),
+        (L("shortcuts.presetRightShift"), KeyboardShortcut(keyCode: 60)),
+        (L("shortcuts.presetLeftOption"), KeyboardShortcut(keyCode: 58)),
+        (L("shortcuts.presetRightOption"), KeyboardShortcut(keyCode: 61)),
+        (L("shortcuts.presetLeftControl"), KeyboardShortcut(keyCode: 59)),
+        (L("shortcuts.presetRightControl"), KeyboardShortcut(keyCode: 62)),
     ]
 
     private static let actionPresets: [(label: String, shortcut: KeyboardShortcut)] = [
-        ("Switch to Alphanumeric", KeyboardShortcut(keyCode: 102)),
-        ("Switch to Kana", KeyboardShortcut(keyCode: 104)),
-        ("Disable key", KeyboardShortcut(keyCode: 999)),
+        (L("shortcuts.actionSwitchToAlphanumeric"), KeyboardShortcut(keyCode: 102)),
+        (L("shortcuts.actionSwitchToKana"), KeyboardShortcut(keyCode: 104)),
+        (L("shortcuts.actionDisableKey"), KeyboardShortcut(keyCode: 999)),
     ]
 
     var body: some View {
         VStack(spacing: 8) {
-            Text("Key: the hotkey to intercept. Action: what happens when you press it.")
+            Text(L("shortcuts.description"))
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             List {
                 HStack(spacing: 12) {
-                    Text("Key")
+                    Text(L("shortcuts.keyColumnHeader"))
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                         .frame(minWidth: 120, alignment: .leading)
                         .padding(.horizontal, 8)
                     Spacer().frame(width: 16)
-                    Text("Action")
+                    Text(L("shortcuts.actionColumnHeader"))
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                         .frame(minWidth: 120, alignment: .leading)
@@ -62,7 +62,7 @@ struct ShortcutsSettingsView: View {
                             if Self.isShadowed(settings.keyMappings, at: index) {
                                 Image(systemName: "exclamationmark.triangle")
                                     .foregroundStyle(.orange)
-                                    .help("Shadowed by an earlier mapping with the same input")
+                                    .help(Text(L("shortcuts.shadowedHelp")))
                             }
                             Spacer()
                             Button(role: .destructive) {
@@ -71,7 +71,7 @@ struct ShortcutsSettingsView: View {
                                 Image(systemName: "minus.circle")
                             }
                             .buttonStyle(.borderless)
-                            .help("Remove this mapping")
+                            .help(Text(L("shortcuts.removeHelp")))
                         }
                         .padding(.vertical, 4)
                     }
@@ -83,7 +83,7 @@ struct ShortcutsSettingsView: View {
                 Button {
                     settings.addKeyMapping()
                 } label: {
-                    Label("Add", systemImage: "plus")
+                    Label(L("shortcuts.addButton"), systemImage: "plus")
                 }
                 Spacer()
             }
@@ -106,7 +106,7 @@ struct ShortcutsSettingsView: View {
             }
         } label: {
             HStack(spacing: 6) {
-                Text(label.isEmpty ? "Input" : label)
+                Text(label.isEmpty ? L("shortcuts.inputPlaceholder") : label)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .foregroundStyle(label.isEmpty ? Color.secondary : Color.primary)
                 Image(systemName: "chevron.up.chevron.down")
@@ -116,7 +116,7 @@ struct ShortcutsSettingsView: View {
             .cellStyle()
         }
         .menuStyle(.borderlessButton)
-        .help("Choose the hotkey to intercept")
+        .help(Text(L("shortcuts.inputHelp")))
     }
 
     @ViewBuilder
@@ -145,12 +145,12 @@ struct ShortcutsSettingsView: View {
             .cellStyle()
         }
         .menuStyle(.borderlessButton)
-        .help("Choose what happens when this key is pressed")
+        .help(Text(L("shortcuts.actionHelp")))
     }
 
     private func actionLabel(for shortcut: KeyboardShortcut) -> String {
         Self.actionPresets.first(where: { $0.shortcut.keyCode == shortcut.keyCode })?.label
-            ?? (shortcut.toString().isEmpty ? "Action" : shortcut.toString())
+            ?? (shortcut.toString().isEmpty ? L("shortcuts.actionColumnHeader") : shortcut.toString())
     }
 
     /// True when `mappings[index]` is enabled and an earlier enabled row has

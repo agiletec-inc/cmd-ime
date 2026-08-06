@@ -19,7 +19,8 @@ let package = Package(
             dependencies: [
                 .product(name: "Sparkle", package: "Sparkle")
             ],
-            path: "Sources/CmdIMESwift"
+            path: "Sources/CmdIMESwift",
+            resources: [.process("Resources")]
         ),
         .testTarget(
             name: "CmdIMESwiftTests",

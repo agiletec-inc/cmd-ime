@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>alert.openSystemSettings</key>
+	<string>Open System Settings</string>
+	<key>alert.tapFailureBody</key>
+	<string>Open System Settings → Privacy &amp; Security → Accessibility, remove ⌘IME if listed, re-add it, then restart the app.</string>
+	<key>alert.tapFailureTitle</key>
+	<string>⌘IME could not start its keyboard listener</string>
+	<key>exclusions.addAppButton</key>
+	<string>Add App…</string>
+	<key>exclusions.addAppHelp</key>
+	<string>Choose any installed app to exclude</string>
+	<key>exclusions.description</key>
+	<string>⌘IME will not remap keys when these apps are frontmost.</string>
+	<key>exclusions.emptyExcluded</key>
+	<string>No excluded apps yet.</string>
+	<key>exclusions.emptyRecent</key>
+	<string>Switch to another app and come back to populate this list.</string>
+	<key>exclusions.excludedHeader</key>
+	<string>Excluded</string>
+	<key>exclusions.openPanelMessage</key>
+	<string>Choose apps to exclude from ⌘IME key remapping</string>
+	<key>exclusions.openPanelPrompt</key>
+	<string>Add</string>
+	<key>exclusions.recentHeader</key>
+	<string>Recently active</string>
+	<key>general.aboutSection</key>
+	<string>About</string>
+	<key>general.checkForUpdatesOnLaunch</key>
+	<string>Check for updates on launch</string>
+	<key>general.checkNow</key>
+	<string>Check Now</string>
+	<key>general.githubLink</key>
+	<string>GitHub</string>
+	<key>general.inputSwitchingSection</key>
+	<string>Input Switching</string>
+	<key>general.issuesLink</key>
+	<string>Issues</string>
+	<key>general.launchAtLogin</key>
+	<string>Launch at Login</string>
+	<key>general.licenseFootnote</key>
+	<string>MIT License · Based on the original cmd-eikana by iMasanari</string>
+	<key>general.licenseLink</key>
+	<string>License</string>
+	<key>general.modeOff</key>
+	<string>Off</string>
+	<key>general.modeOffDescription</key>
+	<string>No automatic switching. Input source stays as-is when you switch apps.</string>
+	<key>general.modePerApp</key>
+	<string>Per app</string>
+	<key>general.modePerAppDescription</key>
+	<string>Remembers and restores the input source for each app when you switch.</string>
+	<key>general.modePickerLabel</key>
+	<string>Mode</string>
+	<key>general.modeSmart</key>
+	<string>Smart</string>
+	<key>general.modeSmartDescription</key>
+	<string>Per-app memory plus auto-switch to alphanumeric in URL bars, phone, email, and ZIP fields. (Beta)</string>
+	<key>general.quitWithCmdQ</key>
+	<string>Quit ⌘IME with ⌘Q</string>
+	<key>general.quitWithCmdQFootnote</key>
+	<string>When off, ⌘Q just closes this window and ⌘IME keeps running in the menu bar. You can quit anytime from the menu bar icon.</string>
+	<key>general.showMenuBarIcon</key>
+	<string>Show menu bar icon</string>
+	<key>general.versionFormat</key>
+	<string>Version %@</string>
+	<key>general.versionShortFormat</key>
+	<string>v%@</string>
+	<key>keyRecorder.cancel</key>
+	<string>Cancel</string>
+	<key>keyRecorder.placeholder</key>
+	<string>Press a key…</string>
+	<key>keyRecorder.save</key>
+	<string>Save</string>
+	<key>menu.checkForUpdates</key>
+	<string>Check for Updates…</string>
+	<key>menu.close</key>
+	<string>Close</string>
+	<key>menu.copy</key>
+	<string>Copy</string>
+	<key>menu.cut</key>
+	<string>Cut</string>
+	<key>menu.edit</key>
+	<string>Edit</string>
+	<key>menu.minimize</key>
+	<string>Minimize</string>
+	<key>menu.paste</key>
+	<string>Paste</string>
+	<key>menu.preferencesTitle</key>
+	<string>⌘IME %@ — Preferences…</string>
+	<key>menu.quit</key>
+	<string>Quit</string>
+	<key>menu.quitApp</key>
+	<string>Quit ⌘IME</string>
+	<key>menu.restart</key>
+	<string>Restart</string>
+	<key>menu.selectAll</key>
+	<string>Select All</string>
+	<key>menu.window</key>
+	<string>Window</string>
+	<key>notification.updateAvailableBody</key>
+	<string>Version %@ is ready to install</string>
+	<key>notification.updateAvailableTitle</key>
+	<string>⌘IME has an update available</string>
+	<key>settingsTabs.exclusions</key>
+	<string>Exclusions</string>
+	<key>settingsTabs.general</key>
+	<string>General</string>
+	<key>settingsTabs.shortcuts</key>
+	<string>Shortcuts</string>
+	<key>shortcuts.actionColumnHeader</key>
+	<string>Action</string>
+	<key>shortcuts.actionDisableKey</key>
+	<string>Disable key</string>
+	<key>shortcuts.actionHelp</key>
+	<string>Choose what happens when this key is pressed</string>
+	<key>shortcuts.actionSwitchToAlphanumeric</key>
+	<string>Switch to Alphanumeric</string>
+	<key>shortcuts.actionSwitchToKana</key>
+	<string>Switch to Kana</string>
+	<key>shortcuts.addButton</key>
+	<string>Add</string>
+	<key>shortcuts.description</key>
+	<string>Key: the hotkey to intercept. Action: what happens when you press it.</string>
+	<key>shortcuts.inputHelp</key>
+	<string>Choose the hotkey to intercept</string>
+	<key>shortcuts.inputPlaceholder</key>
+	<string>Input</string>
+	<key>shortcuts.keyColumnHeader</key>
+	<string>Key</string>
+	<key>shortcuts.presetCapsLock</key>
+	<string>⇪  (Caps Lock)</string>
+	<key>shortcuts.presetEisu</key>
+	<string>英数  (Eisu / Alphanumeric)</string>
+	<key>shortcuts.presetKana</key>
+	<string>かな  (Kana)</string>
+	<key>shortcuts.presetLeftCommand</key>
+	<string>Left ⌘  (Left Command)</string>
+	<key>shortcuts.presetLeftControl</key>
+	<string>Left ⌃  (Left Control)</string>
+	<key>shortcuts.presetLeftOption</key>
+	<string>Left ⌥  (Left Option)</string>
+	<key>shortcuts.presetLeftShift</key>
+	<string>Left ⇧  (Left Shift)</string>
+	<key>shortcuts.presetRightCommand</key>
+	<string>Right ⌘  (Right Command)</string>
+	<key>shortcuts.presetRightControl</key>
+	<string>Right ⌃  (Right Control)</string>
+	<key>shortcuts.presetRightOption</key>
+	<string>Right ⌥  (Right Option)</string>
+	<key>shortcuts.presetRightShift</key>
+	<string>Right ⇧  (Right Shift)</string>
+	<key>shortcuts.removeHelp</key>
+	<string>Remove this mapping</string>
+	<key>shortcuts.shadowedHelp</key>
+	<string>Shadowed by an earlier mapping with the same input</string>
+</dict>
+</plist>

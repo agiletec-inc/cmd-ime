@@ -166,6 +166,16 @@ if [[ -d "$SPARKLE_FRAMEWORK" ]]; then
     ditto "$SPARKLE_FRAMEWORK" "$FRAMEWORKS_DIR/Sparkle.framework"
 fi
 
+# SPM emits a separate <package>_<target>.bundle for `resources:` (Localizable.xcstrings
+# and its compiled .lproj tables) — swift build never merges it into Contents/Resources on
+# its own, so `Bundle.module` lookups (see Localization.swift) would silently fall back to
+# raw keys in a real .app if this bundle isn't carried over here.
+SWIFT_RESOURCE_BUNDLE="$BUILD_DIR/$TRIPLE/release/${BIN_NAME}_${BIN_NAME}.bundle"
+if [[ -d "$SWIFT_RESOURCE_BUNDLE" ]]; then
+    echo ">> Copying ${BIN_NAME}_${BIN_NAME}.bundle"
+    ditto "$SWIFT_RESOURCE_BUNDLE" "$RESOURCES_DIR/${BIN_NAME}_${BIN_NAME}.bundle"
+fi
+
 if [[ -f "$ICON_SOURCE" ]]; then
     ditto "$ICON_SOURCE" "$RESOURCES_DIR/AppIcon.icns"
     ICON_NAME="AppIcon.icns"

@@ -274,13 +274,11 @@ class KeyEvent: NSObject {
     private func presentTapFailureAlert() {
         DispatchQueue.main.async {
             let alert = NSAlert()
-            alert.messageText = "⌘IME could not start its keyboard listener"
-            alert.informativeText =
-                "Open System Settings → Privacy & Security → Accessibility, " +
-                "remove ⌘IME if listed, re-add it, then restart the app."
+            alert.messageText = L("alert.tapFailureTitle")
+            alert.informativeText = L("alert.tapFailureBody")
             alert.alertStyle = .warning
-            alert.addButton(withTitle: "Open System Settings")
-            alert.addButton(withTitle: "Quit")
+            alert.addButton(withTitle: L("alert.openSystemSettings"))
+            alert.addButton(withTitle: L("menu.quit"))
             if alert.runModal() == .alertFirstButtonReturn,
                let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
                 NSWorkspace.shared.open(url)
