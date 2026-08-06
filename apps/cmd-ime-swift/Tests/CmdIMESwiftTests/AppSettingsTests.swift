@@ -156,22 +156,38 @@ final class AppSettingsTests: XCTestCase {
     }
 
     func testBootstrapWithStoredTrueAndServiceNotFoundRegistersInstead() {
-        // SMAppService.Status isn't injectable here, so this only exercises
-        // whatever status the real API reports for the `swift test` process
-        // (an unsigned, unregistered binary — not a proper .app bundle).
-        // That is reliably `.notFound` (confirmed empirically), which is the
-        // "never registered" branch: bootstrap() must honor the stored
-        // intent and attempt to register, NOT flip the toggle off. The
-        // `.requiresApproval` branch (registered but user-disabled) isn't
-        // reachable from this test process and has no automated coverage.
+        // Never-registered case (.notFound, the real status a bare
+        // `swift test` process reported before this test used a fake — see
+        // FakeLoginItemService): bootstrap() must honor the stored intent
+        // and attempt to register, NOT flip the toggle off.
+        let fakeService = FakeLoginItemService(status: .notFound)
         defaults.set(1, forKey: "launchAtStartup")
-        let settings = AppSettings(defaults: defaults)
+        let settings = AppSettings(defaults: defaults, loginItemService: fakeService)
         XCTAssertTrue(settings.launchAtStartup, "precondition: stored value loaded as on")
 
         settings.bootstrap()
 
         XCTAssertTrue(settings.launchAtStartup, "never-registered case must honor stored intent, not follow OS off")
         XCTAssertEqual(defaults.object(forKey: "launchAtStartup") as? Int, 1)
+        XCTAssertEqual(fakeService.registerCallCount, 1, "bootstrap() must register the never-registered case")
+    }
+
+    func testBootstrapWithStoredTrueAndRequiresApprovalFollowsOSStateInstead() {
+        // Registered but user-disabled (or not yet approved) in System
+        // Settings -> Login Items: bootstrap() must defer to the OS state,
+        // not force re-registration behind the user's back. This branch was
+        // previously unreachable from a real `swift test` process (see
+        // git history) and had no automated coverage.
+        let fakeService = FakeLoginItemService(status: .requiresApproval)
+        defaults.set(1, forKey: "launchAtStartup")
+        let settings = AppSettings(defaults: defaults, loginItemService: fakeService)
+        XCTAssertTrue(settings.launchAtStartup, "precondition: stored value loaded as on")
+
+        settings.bootstrap()
+
+        XCTAssertFalse(settings.launchAtStartup, "requiresApproval case must follow the OS state, not stored intent")
+        XCTAssertEqual(defaults.object(forKey: "launchAtStartup") as? Int, 0)
+        XCTAssertEqual(fakeService.registerCallCount, 0, "must not force re-registration behind the user's back")
     }
 
     func testExclusionMutationsPropagateToGlobals() {
