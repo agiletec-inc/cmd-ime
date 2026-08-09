@@ -126,4 +126,4 @@ Based on the original [cmd-eikana](https://github.com/imasanari/cmd-eikana) proj
 
 **Built with ❤️ by the [Agiletec](https://github.com/agiletec-inc) team**
 
-**[Agiletec Inc.](https://github.com/agiletec-inc)** | **[Issues](https://github.com/agiletec-inc/cmd-ime/issues)** | **[Discussions](https://github.com/agiletec-inc/cmd-ime/discussions)**
+**[Agile Technology, K.K.](https://github.com/agiletec-inc)** | **[Issues](https://github.com/agiletec-inc/cmd-ime/issues)** | **[Discussions](https://github.com/agiletec-inc/cmd-ime/discussions)**
