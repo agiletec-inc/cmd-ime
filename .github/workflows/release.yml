@@ -53,41 +53,33 @@ jobs:
           fi
 
       # Independent idempotency check for the appcast phase. A run can die after
-      # `gh release create` (tag now exists) but before the appcast branch push
+      # `gh release create` (tag now exists) but before the appcast asset upload
       # (network/permission failure) — a naive re-run would see the tag and skip
       # everything, leaving the release on GitHub forever invisible to Sparkle's
-      # auto-update feed. Checking the appcast branch directly (instead of trusting
-      # the tag) lets a re-run detect and finish that specific gap.
+      # auto-update feed. The release asset is the new source of truth.
       - name: Check appcast entry status
         id: check_appcast
         run: |
           set -euo pipefail
           VERSION="${{ steps.version.outputs.version }}"
 
-          # Distinguish "branch does not exist" (ls-remote exit 2) from a
-          # transient query failure — conflating them would mark a published
-          # entry as missing and append a duplicate <item> on re-run.
-          set +e
-          git ls-remote --exit-code origin refs/heads/appcast >/dev/null
-          LS_EXIT=$?
-          set -e
-
-          if [ "$LS_EXIT" -eq 0 ]; then
-            git fetch origin appcast
-            git show FETCH_HEAD:appcast.xml > /tmp/appcast_current.xml
-            if grep -q "<sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>" /tmp/appcast_current.xml; then
+          # A release can exist without its appcast asset after an interrupted
+          # upload. A GitHub Release asset check is idempotent and does not
+          # mistake the transitional appcast branch for the new source of truth.
+          if [ "${{ steps.check_tag.outputs.exists }}" = "false" ]; then
+            echo "missing=true" >> $GITHUB_OUTPUT
+          else
+            ASSETS=$(gh release view "v${VERSION}" --json assets --jq '.assets[].name') || {
+              echo "::error::could not query GitHub Release v${VERSION} assets" >&2
+              exit 1
+            }
+            if grep -Fxq 'appcast.xml' <<< "$ASSETS"; then
               echo "missing=false" >> $GITHUB_OUTPUT
-              echo "✅ appcast branch already has an entry for v${VERSION}"
+              echo "✅ GitHub Release v${VERSION} already has appcast.xml"
             else
               echo "missing=true" >> $GITHUB_OUTPUT
-              echo "⚠️  appcast branch exists but has no entry for v${VERSION}"
+              echo "⚠️  GitHub Release v${VERSION} has no appcast.xml asset"
             fi
-          elif [ "$LS_EXIT" -eq 2 ]; then
-            echo "missing=true" >> $GITHUB_OUTPUT
-            echo "📄 appcast branch not found — treating the appcast entry as missing"
-          else
-            echo "::error::could not query origin for the appcast branch (git ls-remote exit $LS_EXIT)" >&2
-            exit 1
           fi
 
       # Single source of truth for which step groups run. Three states:
@@ -415,50 +407,86 @@ jobs:
           BUILD_NUMBER=$(echo "$VERSION" | awk -F. '{printf "%d%02d%02d", $1, $2, $3}')
           PUB_DATE=$(date -u "+%a, %d %b %Y %H:%M:%S +0000")
 
-          # Base the appcast off the accumulated copy on the `appcast` branch so
-          # every release entry is preserved. Only a confirmed-absent branch
-          # (ls-remote exit 2, i.e. first release ever) may seed from the
-          # in-repo empty template — a transient fetch failure must abort, or
-          # the force-push below would wipe the accumulated feed history.
-          set +e
-          git ls-remote --exit-code origin refs/heads/appcast >/dev/null
-          LS_EXIT=$?
-          set -e
+          # GitHub Releases is the cumulative-feed input. Exclude drafts and
+          # prereleases explicitly: `/releases/latest/` has the same stable
+          # release semantics, and a draft/prerelease must never replace the
+          # public feed. The appcast branch remains a transitional dual-publish
+          # output for existing clients; it is not read here (see #137).
+          APPCAST_DIR="$(mktemp -d)"
+          APPCAST_INPUT="$APPCAST_DIR/appcast.xml"
+          STABLE_RELEASES=$(gh release list --limit 100 --exclude-drafts --exclude-pre-releases \
+            --json tagName --jq '.[].tagName') || {
+            echo "::error::could not list stable GitHub Releases for the prior appcast" >&2
+            exit 1
+          }
 
-          if [ "$LS_EXIT" -eq 0 ]; then
-            git fetch origin appcast
-            git show FETCH_HEAD:appcast.xml > appcast.xml
-            echo "📥 Loaded accumulated appcast from the appcast branch"
-          elif [ "$LS_EXIT" -eq 2 ]; then
-            echo "📄 appcast branch not found — seeding from the in-repo template"
-          else
-            echo "::error::could not query origin for the appcast branch (git ls-remote exit $LS_EXIT)" >&2
+          FOUND_RELEASE_ASSET=false
+          while IFS= read -r RELEASE_TAG; do
+            [ -n "$RELEASE_TAG" ] || continue
+            ASSETS=$(gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name') || {
+              echo "::error::could not query assets for GitHub Release $RELEASE_TAG" >&2
+              exit 1
+            }
+            if ! grep -Fxq 'appcast.xml' <<< "$ASSETS"; then
+              continue
+            fi
+            gh release download "$RELEASE_TAG" --pattern appcast.xml --dir "$APPCAST_DIR" --clobber
+            FOUND_RELEASE_ASSET=true
+            echo "📥 Loaded accumulated appcast from stable GitHub Release $RELEASE_TAG"
+            break
+          done <<< "$STABLE_RELEASES"
+
+          if [ "$FOUND_RELEASE_ASSET" = "false" ]; then
+            if [ -n "$STABLE_RELEASES" ]; then
+              echo "::error::stable GitHub Releases exist, but none has a non-empty appcast.xml asset" >&2
+              exit 1
+            fi
+            cp appcast.xml "$APPCAST_INPUT"
+            echo "📄 no stable GitHub Release exists — seeding from the in-repo template"
+          fi
+
+          if [ ! -s "$APPCAST_INPUT" ]; then
+            echo "::error::prior appcast input is empty; refusing to overwrite the feed" >&2
+            exit 1
+          fi
+          if ! grep -Fq '</channel>' "$APPCAST_INPUT"; then
+            echo "::error::prior appcast input is not a valid feed; refusing to overwrite the feed" >&2
             exit 1
           fi
 
-          awk \
-            -v ver="$VERSION" \
-            -v sig="$SIG" \
-            -v size="$ZIP_SIZE" \
-            -v build="$BUILD_NUMBER" \
-            -v date="$PUB_DATE" \
-            '/    <\/channel>/ {
-              printf "        <item>\n"
-              printf "            <title>Version %s</title>\n", ver
-              printf "            <pubDate>%s</pubDate>\n", date
-              printf "            <sparkle:version>%s</sparkle:version>\n", build
-              printf "            <sparkle:shortVersionString>%s</sparkle:shortVersionString>\n", ver
-              printf "            <enclosure\n"
-              printf "                url=\"https://github.com/agiletec-inc/cmd-ime/releases/download/v%s/cmd-ime-%s.zip\"\n", ver, ver
-              printf "                sparkle:edSignature=\"%s\"\n", sig
-              printf "                length=\"%s\"\n", size
-              printf "                type=\"application/zip\" />\n"
-              printf "        </item>\n"
-            }
-            { print }' \
-            appcast.xml > /tmp/appcast_new.xml
+          if grep -Fq "<sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>" "$APPCAST_INPUT"; then
+            cp "$APPCAST_INPUT" appcast.xml
+            echo "✅ appcast.xml already contains v${VERSION}; keeping the prior feed byte-for-byte"
+          else
+            awk \
+              -v ver="$VERSION" \
+              -v sig="$SIG" \
+              -v size="$ZIP_SIZE" \
+              -v build="$BUILD_NUMBER" \
+              -v date="$PUB_DATE" \
+              '/    <\/channel>/ {
+                printf "        <item>\n"
+                printf "            <title>Version %s</title>\n", ver
+                printf "            <pubDate>%s</pubDate>\n", date
+                printf "            <sparkle:version>%s</sparkle:version>\n", build
+                printf "            <sparkle:shortVersionString>%s</sparkle:shortVersionString>\n", ver
+                printf "            <enclosure\n"
+                printf "                url=\"https://github.com/agiletec-inc/cmd-ime/releases/download/v%s/cmd-ime-%s.zip\"\n", ver, ver
+                printf "                sparkle:edSignature=\"%s\"\n", sig
+                printf "                length=\"%s\"\n", size
+                printf "                type=\"application/zip\" />\n"
+                printf "        </item>\n"
+              }
+              { print }' \
+              "$APPCAST_INPUT" > /tmp/appcast_new.xml
 
-          mv /tmp/appcast_new.xml appcast.xml
+            if [ ! -s /tmp/appcast_new.xml ] || ! grep -Fq "<sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>" /tmp/appcast_new.xml; then
+              echo "::error::generated appcast is empty or missing v${VERSION}; refusing to overwrite the feed" >&2
+              exit 1
+            fi
+            mv /tmp/appcast_new.xml appcast.xml
+          fi
+
           echo "✅ appcast.xml updated"
           cat appcast.xml
 
@@ -480,13 +508,23 @@ jobs:
 
           echo "✅ Release v${VERSION} created successfully!"
 
-      # Publish the accumulated appcast to a dedicated, unprotected `appcast`
-      # branch. SUFeedURL points at this branch's raw URL, so the feed no longer
-      # depends on the `latest` release staying in place, and every release's
-      # <item> is retained for version history and Sparkle delta generation.
-      # Runs after the release exists because the <enclosure> URL references the
-      # release download. The branch is a single force-pushed commit — its git
-      # history is irrelevant; the version history lives inside appcast.xml.
+      # Recovery path: the release already exists but its appcast asset was
+      # missing. Upload the validated cumulative feed without recreating the
+      # release or changing its published binaries.
+      - name: Upload appcast asset to existing GitHub Release
+        if: steps.phase.outputs.needs_build == 'false' && steps.phase.outputs.needs_appcast == 'true'
+        env:
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          test -s appcast.xml
+          gh release upload "v${VERSION}" appcast.xml --clobber
+          echo "✅ Uploaded appcast.xml to GitHub Release v${VERSION}"
+
+      # Transitional dual-publish for existing clients that still use the old
+      # branch URL. Keep this step until the measurable migration criteria in
+      # #137 are met; the branch is intentionally not deleted in phase 1.
       - name: Publish appcast.xml to appcast branch
         if: steps.phase.outputs.needs_appcast == 'true'
         env:
