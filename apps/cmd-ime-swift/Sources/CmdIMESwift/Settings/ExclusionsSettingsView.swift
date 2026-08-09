@@ -14,13 +14,13 @@ struct ExclusionsSettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("⌘IME will not remap keys when these apps are frontmost.")
+            Text(L("exclusions.description"))
                 .font(.callout)
                 .foregroundStyle(.secondary)
 
-            sectionHeader("Excluded")
+            sectionHeader(L("exclusions.excludedHeader"))
             if settings.exclusionApps.isEmpty {
-                emptyRow("No excluded apps yet.")
+                emptyRow(L("exclusions.emptyExcluded"))
             } else {
                 List {
                     ForEach(settings.exclusionApps) { app in
@@ -47,15 +47,15 @@ struct ExclusionsSettingsView: View {
             }
 
             HStack {
-                sectionHeader("Recently active")
+                sectionHeader(L("exclusions.recentHeader"))
                 Spacer()
-                Button("Add App…") { browseForApp() }
+                Button(L("exclusions.addAppButton")) { browseForApp() }
                     .buttonStyle(.borderless)
                     .font(.callout)
-                    .help("Choose any installed app to exclude")
+                    .help(Text(L("exclusions.addAppHelp")))
             }
             if recentApps.isEmpty {
-                emptyRow("Switch to another app and come back to populate this list.")
+                emptyRow(L("exclusions.emptyRecent"))
             } else {
                 List {
                     ForEach(recentApps, id: \.id) { app in
@@ -92,8 +92,8 @@ struct ExclusionsSettingsView: View {
         panel.canChooseDirectories = false
         panel.canChooseFiles = true
         panel.allowedContentTypes = [UTType(filenameExtension: "app") ?? .data]
-        panel.message = "Choose apps to exclude from ⌘IME key remapping"
-        panel.prompt = "Add"
+        panel.message = L("exclusions.openPanelMessage")
+        panel.prompt = L("exclusions.openPanelPrompt")
         if panel.runModal() == .OK {
             for url in panel.urls {
                 guard let bundle = Bundle(url: url),

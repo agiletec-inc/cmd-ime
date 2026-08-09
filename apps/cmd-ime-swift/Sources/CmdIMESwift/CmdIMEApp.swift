@@ -41,21 +41,21 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate,
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
 
         menu.addItem(
-            withTitle: "⌘IME \(version) — Preferences...",
+            withTitle: String(format: L("menu.preferencesTitle"), version),
             action: #selector(AppDelegate.openPreferencesSelector(_:)),
             keyEquivalent: ","
         )
         menu.addItem(NSMenuItem.separator())
         let updateItem = NSMenuItem(
-            title: "Check for Updates...",
+            title: L("menu.checkForUpdates"),
             action: #selector(SPUStandardUpdaterController.checkForUpdates(_:)),
             keyEquivalent: ""
         )
         updateItem.target = updaterController
         menu.addItem(updateItem)
         menu.addItem(NSMenuItem.separator())
-        menu.addItem(withTitle: "Restart", action: #selector(AppDelegate.restart(_:)), keyEquivalent: "")
-        menu.addItem(withTitle: "Quit", action: #selector(AppDelegate.quit(_:)), keyEquivalent: "q")
+        menu.addItem(withTitle: L("menu.restart"), action: #selector(AppDelegate.restart(_:)), keyEquivalent: "")
+        menu.addItem(withTitle: L("menu.quit"), action: #selector(AppDelegate.quit(_:)), keyEquivalent: "q")
 
         // A main menu lets the Preferences window honor ⌘W / ⌘Q and text-editing keys.
         NSApp.mainMenu = makeMainMenu()
@@ -140,7 +140,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate,
         let appMenu = NSMenu()
         appItem.submenu = appMenu
         let quitItem = appMenu.addItem(
-            withTitle: "Quit ⌘IME",
+            withTitle: L("menu.quitApp"),
             action: #selector(handleCommandQ(_:)),
             keyEquivalent: "q"
         )
@@ -150,26 +150,26 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate,
         // text fields (key recorder, app pickers) get the usual shortcuts.
         let editItem = NSMenuItem()
         mainMenu.addItem(editItem)
-        let editMenu = NSMenu(title: "Edit")
+        let editMenu = NSMenu(title: L("menu.edit"))
         editItem.submenu = editMenu
-        editMenu.addItem(withTitle: "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
-        editMenu.addItem(withTitle: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
-        editMenu.addItem(withTitle: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
-        editMenu.addItem(withTitle: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+        editMenu.addItem(withTitle: L("menu.cut"), action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        editMenu.addItem(withTitle: L("menu.copy"), action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        editMenu.addItem(withTitle: L("menu.paste"), action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        editMenu.addItem(withTitle: L("menu.selectAll"), action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
 
         // Window menu — ⌘W closes the focused window (the agent stays in the menu
         // bar); ⌘M minimizes it.
         let windowItem = NSMenuItem()
         mainMenu.addItem(windowItem)
-        let windowMenu = NSMenu(title: "Window")
+        let windowMenu = NSMenu(title: L("menu.window"))
         windowItem.submenu = windowMenu
         windowMenu.addItem(
-            withTitle: "Close",
+            withTitle: L("menu.close"),
             action: #selector(NSWindow.performClose(_:)),
             keyEquivalent: "w"
         )
         windowMenu.addItem(
-            withTitle: "Minimize",
+            withTitle: L("menu.minimize"),
             action: #selector(NSWindow.performMiniaturize(_:)),
             keyEquivalent: "m"
         )
@@ -215,8 +215,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate,
 
         NSApp.dockTile.badgeLabel = "1"
         let content = UNMutableNotificationContent()
-        content.title = "⌘IME の新しいバージョンがあります"
-        content.body = "v\(update.displayVersionString) をインストールできます"
+        content.title = L("notification.updateAvailableTitle")
+        content.body = String(format: L("notification.updateAvailableBody"), update.displayVersionString)
         let request = UNNotificationRequest(
             identifier: Self.updateNotificationIdentifier,
             content: content,

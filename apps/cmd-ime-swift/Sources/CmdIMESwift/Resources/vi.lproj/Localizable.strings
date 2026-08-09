@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>alert.openSystemSettings</key>
+	<string>Mở Cài đặt Hệ thống</string>
+	<key>alert.tapFailureBody</key>
+	<string>Mở Cài đặt Hệ thống → Quyền riêng tư &amp; Bảo mật → Trợ năng, xóa ⌘IME nếu có trong danh sách, thêm lại, rồi khởi động lại ứng dụng.</string>
+	<key>alert.tapFailureTitle</key>
+	<string>⌘IME không thể khởi động trình lắng nghe bàn phím</string>
+	<key>exclusions.addAppButton</key>
+	<string>Thêm ứng dụng…</string>
+	<key>exclusions.addAppHelp</key>
+	<string>Chọn một ứng dụng đã cài đặt để loại trừ</string>
+	<key>exclusions.description</key>
+	<string>⌘IME sẽ không ánh xạ lại phím khi các ứng dụng này đang ở phía trước.</string>
+	<key>exclusions.emptyExcluded</key>
+	<string>Chưa có ứng dụng nào bị loại trừ.</string>
+	<key>exclusions.emptyRecent</key>
+	<string>Chuyển sang ứng dụng khác rồi quay lại để danh sách này được điền đầy đủ.</string>
+	<key>exclusions.excludedHeader</key>
+	<string>Đã loại trừ</string>
+	<key>exclusions.openPanelMessage</key>
+	<string>Chọn ứng dụng để loại trừ khỏi việc ánh xạ lại phím của ⌘IME</string>
+	<key>exclusions.openPanelPrompt</key>
+	<string>Thêm</string>
+	<key>exclusions.recentHeader</key>
+	<string>Gần đây đã dùng</string>
+	<key>general.aboutSection</key>
+	<string>Giới thiệu</string>
+	<key>general.checkForUpdatesOnLaunch</key>
+	<string>Kiểm tra cập nhật khi khởi động</string>
+	<key>general.checkNow</key>
+	<string>Kiểm tra ngay</string>
+	<key>general.githubLink</key>
+	<string>GitHub</string>
+	<key>general.inputSwitchingSection</key>
+	<string>Chuyển đổi nhập liệu</string>
+	<key>general.issuesLink</key>
+	<string>Issues</string>
+	<key>general.launchAtLogin</key>
+	<string>Mở khi đăng nhập</string>
+	<key>general.licenseFootnote</key>
+	<string>Giấy phép MIT · Dựa trên dự án gốc cmd-eikana của iMasanari</string>
+	<key>general.licenseLink</key>
+	<string>Giấy phép</string>
+	<key>general.modeOff</key>
+	<string>Tắt</string>
+	<key>general.modeOffDescription</key>
+	<string>Không tự động chuyển đổi. Nguồn nhập vẫn giữ nguyên khi bạn chuyển ứng dụng.</string>
+	<key>general.modePerApp</key>
+	<string>Theo ứng dụng</string>
+	<key>general.modePerAppDescription</key>
+	<string>Ghi nhớ và khôi phục nguồn nhập cho từng ứng dụng khi bạn chuyển đổi.</string>
+	<key>general.modePickerLabel</key>
+	<string>Chế độ</string>
+	<key>general.modeSmart</key>
+	<string>Thông minh</string>
+	<key>general.modeSmartDescription</key>
+	<string>Ngoài ghi nhớ theo ứng dụng, còn tự động chuyển sang nhập chữ và số trong thanh URL, số điện thoại, email và mã bưu điện. (Beta)</string>
+	<key>general.quitWithCmdQ</key>
+	<string>Thoát ⌘IME bằng ⌘Q</string>
+	<key>general.quitWithCmdQFootnote</key>
+	<string>Khi tắt, ⌘Q chỉ đóng cửa sổ này và ⌘IME vẫn chạy trên thanh menu. Bạn có thể thoát bất cứ lúc nào từ biểu tượng trên thanh menu.</string>
+	<key>general.showMenuBarIcon</key>
+	<string>Hiện biểu tượng trên thanh menu</string>
+	<key>general.versionFormat</key>
+	<string>Phiên bản %@</string>
+	<key>general.versionShortFormat</key>
+	<string>v%@</string>
+	<key>keyRecorder.cancel</key>
+	<string>Hủy</string>
+	<key>keyRecorder.placeholder</key>
+	<string>Nhấn một phím…</string>
+	<key>keyRecorder.save</key>
+	<string>Lưu</string>
+	<key>menu.checkForUpdates</key>
+	<string>Kiểm tra cập nhật…</string>
+	<key>menu.close</key>
+	<string>Đóng</string>
+	<key>menu.copy</key>
+	<string>Sao chép</string>
+	<key>menu.cut</key>
+	<string>Cắt</string>
+	<key>menu.edit</key>
+	<string>Chỉnh sửa</string>
+	<key>menu.minimize</key>
+	<string>Thu nhỏ</string>
+	<key>menu.paste</key>
+	<string>Dán</string>
+	<key>menu.preferencesTitle</key>
+	<string>⌘IME %@ — Tùy chỉnh…</string>
+	<key>menu.quit</key>
+	<string>Thoát</string>
+	<key>menu.quitApp</key>
+	<string>Thoát ⌘IME</string>
+	<key>menu.restart</key>
+	<string>Khởi động lại</string>
+	<key>menu.selectAll</key>
+	<string>Chọn Tất Cả</string>
+	<key>menu.window</key>
+	<string>Cửa sổ</string>
+	<key>notification.updateAvailableBody</key>
+	<string>Phiên bản %@ đã sẵn sàng để cài đặt</string>
+	<key>notification.updateAvailableTitle</key>
+	<string>⌘IME có bản cập nhật mới</string>
+	<key>settingsTabs.exclusions</key>
+	<string>Loại trừ</string>
+	<key>settingsTabs.general</key>
+	<string>Chung</string>
+	<key>settingsTabs.shortcuts</key>
+	<string>Phím tắt</string>
+	<key>shortcuts.actionColumnHeader</key>
+	<string>Hành động</string>
+	<key>shortcuts.actionDisableKey</key>
+	<string>Vô hiệu hóa phím</string>
+	<key>shortcuts.actionHelp</key>
+	<string>Chọn điều xảy ra khi phím này được nhấn</string>
+	<key>shortcuts.actionSwitchToAlphanumeric</key>
+	<string>Chuyển sang chữ và số</string>
+	<key>shortcuts.actionSwitchToKana</key>
+	<string>Chuyển sang Kana</string>
+	<key>shortcuts.addButton</key>
+	<string>Thêm</string>
+	<key>shortcuts.description</key>
+	<string>Phím: phím tắt cần chặn. Hành động: điều xảy ra khi bạn nhấn phím đó.</string>
+	<key>shortcuts.inputHelp</key>
+	<string>Chọn phím tắt cần chặn</string>
+	<key>shortcuts.inputPlaceholder</key>
+	<string>Đầu vào</string>
+	<key>shortcuts.keyColumnHeader</key>
+	<string>Phím</string>
+	<key>shortcuts.presetCapsLock</key>
+	<string>⇪  (Caps Lock)</string>
+	<key>shortcuts.presetEisu</key>
+	<string>英数  (Eisu / Alphanumeric)</string>
+	<key>shortcuts.presetKana</key>
+	<string>かな  (Kana)</string>
+	<key>shortcuts.presetLeftCommand</key>
+	<string>⌘ trái  (Command trái)</string>
+	<key>shortcuts.presetLeftControl</key>
+	<string>⌃ trái  (Control trái)</string>
+	<key>shortcuts.presetLeftOption</key>
+	<string>⌥ trái  (Option trái)</string>
+	<key>shortcuts.presetLeftShift</key>
+	<string>⇧ trái  (Shift trái)</string>
+	<key>shortcuts.presetRightCommand</key>
+	<string>⌘ phải  (Command phải)</string>
+	<key>shortcuts.presetRightControl</key>
+	<string>⌃ phải  (Control phải)</string>
+	<key>shortcuts.presetRightOption</key>
+	<string>⌥ phải  (Option phải)</string>
+	<key>shortcuts.presetRightShift</key>
+	<string>⇧ phải  (Shift phải)</string>
+	<key>shortcuts.removeHelp</key>
+	<string>Xóa ánh xạ này</string>
+	<key>shortcuts.shadowedHelp</key>
+	<string>Bị che khuất bởi ánh xạ trước đó có cùng đầu vào</string>
+</dict>
+</plist>

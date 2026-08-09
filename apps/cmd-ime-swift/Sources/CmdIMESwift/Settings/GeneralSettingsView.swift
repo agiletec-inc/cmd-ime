@@ -15,59 +15,60 @@ struct GeneralSettingsView: View {
     var body: some View {
         Form {
             Section {
-                Toggle("Launch at login", isOn: $settings.launchAtStartup)
-                Toggle("Show menu bar icon", isOn: $settings.showMenuBarIcon)
-                Toggle("Quit ⌘IME with ⌘Q", isOn: $settings.quitOnCommandQ)
-                Text("When off, ⌘Q just closes this window and ⌘IME keeps running "
-                     + "in the menu bar. You can quit anytime from the menu bar icon.")
+                Toggle(L("general.launchAtLogin"), isOn: $settings.launchAtStartup)
+                Toggle(L("general.showMenuBarIcon"), isOn: $settings.showMenuBarIcon)
+                Toggle(L("general.quitWithCmdQ"), isOn: $settings.quitOnCommandQ)
+                Text(L("general.quitWithCmdQFootnote"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
 
             Section {
-                Toggle("Check for updates on launch", isOn: $settings.checkUpdateAtLaunch)
+                Toggle(L("general.checkForUpdatesOnLaunch"), isOn: $settings.checkUpdateAtLaunch)
                 HStack {
-                    Button("Check Now") {
+                    Button(L("general.checkNow")) {
                         (NSApp.delegate as? AppDelegate)?.updaterController.updater.checkForUpdates()
                     }
                     Spacer()
-                    Text("Version \(version)").foregroundStyle(.secondary)
+                    Text(String(format: L("general.versionFormat"), version)).foregroundStyle(.secondary)
                 }
             }
 
-            Section("Input Switching") {
-                Picker("Mode", selection: $settings.switchingMode) {
-                    Text("Off").tag(AppSettings.SwitchingMode.global)
-                    Text("Per app").tag(AppSettings.SwitchingMode.perApp)
-                    Text("Smart").tag(AppSettings.SwitchingMode.smart)
+            Section(L("general.inputSwitchingSection")) {
+                Picker(L("general.modePickerLabel"), selection: $settings.switchingMode) {
+                    Text(L("general.modeOff")).tag(AppSettings.SwitchingMode.global)
+                    Text(L("general.modePerApp")).tag(AppSettings.SwitchingMode.perApp)
+                    Text(L("general.modeSmart")).tag(AppSettings.SwitchingMode.smart)
                 }
                 .pickerStyle(.segmented)
                 Group {
                     switch settings.switchingMode {
                     case .global:
-                        Text("No automatic switching. Input source stays as-is when you switch apps.")
+                        Text(L("general.modeOffDescription"))
                     case .perApp:
-                        Text("Remembers and restores the input source for each app when you switch.")
+                        Text(L("general.modePerAppDescription"))
                     case .smart:
-                        Text("Per-app memory plus auto-switch to alphanumeric in URL bars, phone, email, and ZIP fields. (Beta)")
+                        Text(L("general.modeSmartDescription"))
                     }
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)
             }
 
-            Section("About") {
+            Section(L("general.aboutSection")) {
                 HStack(spacing: 8) {
                     Text("⌘IME").fontWeight(.semibold)
-                    Text("v\(version)").foregroundStyle(.secondary)
+                    Text(String(format: L("general.versionShortFormat"), version)).foregroundStyle(.secondary)
                     Spacer()
-                    Link("GitHub", destination: URL(string: "https://github.com/agiletec-inc/cmd-ime")!)
+                    Link(L("general.githubLink"), destination: URL(string: "https://github.com/agiletec-inc/cmd-ime")!)
                     Text("·").foregroundStyle(.secondary)
-                    Link("Issues", destination: URL(string: "https://github.com/agiletec-inc/cmd-ime/issues")!)
+                    Link(L("general.issuesLink"),
+                         destination: URL(string: "https://github.com/agiletec-inc/cmd-ime/issues")!)
                     Text("·").foregroundStyle(.secondary)
-                    Link("License", destination: URL(string: "https://github.com/agiletec-inc/cmd-ime/blob/main/LICENSE")!)
+                    Link(L("general.licenseLink"),
+                         destination: URL(string: "https://github.com/agiletec-inc/cmd-ime/blob/main/LICENSE")!)
                 }
-                Text("MIT License · Based on the original cmd-eikana by iMasanari")
+                Text(L("general.licenseFootnote"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

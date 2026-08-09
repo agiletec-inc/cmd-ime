@@ -15,9 +15,9 @@ struct SettingsView: View {
 
         var label: String {
             switch self {
-            case .general: return "General"
-            case .shortcuts: return "Shortcuts"
-            case .exclusions: return "Exclusions"
+            case .general: return L("settingsTabs.general")
+            case .shortcuts: return L("settingsTabs.shortcuts")
+            case .exclusions: return L("settingsTabs.exclusions")
             }
         }
 
