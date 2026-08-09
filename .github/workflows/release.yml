@@ -1,9 +1,6 @@
 name: Release to Homebrew
 
 on:
-  pull_request:
-    types: [closed]
-    branches: [main]
   workflow_dispatch:
 
 # Serialize releases — never run two release jobs at once, and never cancel
@@ -14,9 +11,6 @@ concurrency:
 
 jobs:
   release:
-    # pull_request: run only on actual merges (not closed-without-merge)
-    # workflow_dispatch: always run (manual trigger for re-runs)
-    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
     runs-on: macos-latest
     timeout-minutes: 45
     permissions:
