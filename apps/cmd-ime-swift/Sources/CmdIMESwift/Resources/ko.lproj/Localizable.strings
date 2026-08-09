@@ -118,6 +118,8 @@
 	<string>이 키를 눌렀을 때 실행할 작업을 선택하세요</string>
 	<key>shortcuts.actionSwitchToAlphanumeric</key>
 	<string>영숫자로 전환</string>
+	<key>shortcuts.actionSwitchToInputSource</key>
+	<string>입력 소스로 전환</string>
 	<key>shortcuts.actionSwitchToKana</key>
 	<string>가나로 전환</string>
 	<key>shortcuts.addButton</key>

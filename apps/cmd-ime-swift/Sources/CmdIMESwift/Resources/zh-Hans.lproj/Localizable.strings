@@ -118,6 +118,8 @@
 	<string>选择按下此键时执行的操作</string>
 	<key>shortcuts.actionSwitchToAlphanumeric</key>
 	<string>切换到英数</string>
+	<key>shortcuts.actionSwitchToInputSource</key>
+	<string>切换到输入法</string>
 	<key>shortcuts.actionSwitchToKana</key>
 	<string>切换到假名</string>
 	<key>shortcuts.addButton</key>

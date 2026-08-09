@@ -118,6 +118,8 @@
 	<string>このキーを押したときの動作を選択します</string>
 	<key>shortcuts.actionSwitchToAlphanumeric</key>
 	<string>英数に切り替え</string>
+	<key>shortcuts.actionSwitchToInputSource</key>
+	<string>入力ソースに切り替え</string>
 	<key>shortcuts.actionSwitchToKana</key>
 	<string>かなに切り替え</string>
 	<key>shortcuts.addButton</key>

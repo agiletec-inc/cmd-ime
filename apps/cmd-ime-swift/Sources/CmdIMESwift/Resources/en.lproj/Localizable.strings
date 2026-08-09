@@ -118,6 +118,8 @@
 	<string>Choose what happens when this key is pressed</string>
 	<key>shortcuts.actionSwitchToAlphanumeric</key>
 	<string>Switch to Alphanumeric</string>
+	<key>shortcuts.actionSwitchToInputSource</key>
+	<string>Switch to Input Source</string>
 	<key>shortcuts.actionSwitchToKana</key>
 	<string>Switch to Kana</string>
 	<key>shortcuts.addButton</key>

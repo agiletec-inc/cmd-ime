@@ -138,10 +138,26 @@ final class AppSettings: ObservableObject {
     func updateKeyMapping(at index: Int, input: KeyboardShortcut? = nil, output: KeyboardShortcut? = nil) {
         guard keyMappings.indices.contains(index) else { return }
         if let input = input { keyMappings[index].input = input }
-        if let output = output { keyMappings[index].output = output }
+        if let output = output {
+            keyMappings[index].output = output
+            // A key-post output supersedes any input-source output previously
+            // chosen on this row — the two mechanisms are mutually exclusive.
+            keyMappings[index].outputInputSourceID = nil
+        }
         // A freshly-added row stays disabled until both sides have been
         // explicitly chosen through the preset menus (see addKeyMapping()).
         if !keyMappings[index].input.isUnset && !keyMappings[index].output.isUnset {
+            keyMappings[index].enable = true
+        }
+        keyMappings = keyMappings  // trigger didSet
+    }
+
+    /// Sets this row's action to "select this input source" (TIS mechanism)
+    /// instead of posting a key. See KeyMapping.outputInputSourceID.
+    func updateKeyMappingOutputSource(at index: Int, sourceID: String) {
+        guard keyMappings.indices.contains(index) else { return }
+        keyMappings[index].outputInputSourceID = sourceID
+        if !keyMappings[index].input.isUnset {
             keyMappings[index].enable = true
         }
         keyMappings = keyMappings  // trigger didSet

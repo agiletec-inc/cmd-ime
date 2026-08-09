@@ -34,6 +34,12 @@ class KeyEvent: NSObject {
     // system-wide event.
     var postModifierTap: (KeyboardShortcut) -> Void = { $0.postEvent() }
 
+    // Test seam: modifierKeyUp selects a TIS input source through this when
+    // the mapping carries `outputInputSourceID` instead of a key-post output.
+    // Overridden in unit tests to capture the selection instead of mutating
+    // real system input-source state.
+    var selectInputSourceAction: (String) -> Void = { InputSourceCatalog.select(id: $0) }
+
     var isExclusionApp = false
     let bundleId = Bundle.main.infoDictionary?["CFBundleIdentifier"] as? String ?? "com.kazuki.cmdime"
 
@@ -370,13 +376,15 @@ class KeyEvent: NSObject {
     func modifierKeyUp(_ event: CGEvent) -> Unmanaged<CGEvent>? {
         let code = CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode))
 
-        if pendingModifierTaps.remove(code) != nil,
-           let mapping = findMapping(for: event),
-           mapping.output.keyCode != 999 {
-            // Post the bare output shortcut. Residual held modifiers (e.g. a
-            // still-held Shift) must not leak into the synthesized tap, or
-            // the IME sees Shift+英数 instead of 英数 and ignores it.
-            postModifierTap(KeyboardShortcut(keyCode: mapping.output.keyCode, flags: mapping.output.flags))
+        if pendingModifierTaps.remove(code) != nil, let mapping = findMapping(for: event) {
+            if let sourceID = mapping.outputInputSourceID {
+                selectInputSourceAction(sourceID)
+            } else if mapping.output.keyCode != 999 {
+                // Post the bare output shortcut. Residual held modifiers (e.g. a
+                // still-held Shift) must not leak into the synthesized tap, or
+                // the IME sees Shift+英数 instead of 英数 and ignores it.
+                postModifierTap(KeyboardShortcut(keyCode: mapping.output.keyCode, flags: mapping.output.flags))
+            }
         }
 
         return Unmanaged.passRetained(event)

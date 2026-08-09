@@ -118,6 +118,8 @@
 	<string>Chọn điều xảy ra khi phím này được nhấn</string>
 	<key>shortcuts.actionSwitchToAlphanumeric</key>
 	<string>Chuyển sang chữ và số</string>
+	<key>shortcuts.actionSwitchToInputSource</key>
+	<string>Chuyển sang nguồn nhập</string>
 	<key>shortcuts.actionSwitchToKana</key>
 	<string>Chuyển sang Kana</string>
 	<key>shortcuts.addButton</key>
