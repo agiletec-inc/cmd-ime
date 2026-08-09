@@ -1,8 +1,8 @@
 name: CI
 
-# Org reusable CI caller — opinionated Swift baseline (swift test + release smoke).
+# Public repositories cannot call a private reusable workflow. Keep this local
+# copy aligned with the central baseline while preserving the required checks.
 # Package.swift lives in apps/cmd-ime-swift; release smoke is the repo's package.sh.
-# Logic lives in agiletec-inc/.github. Required checks: "secret-scan / scan", "ci / ci".
 on:
   pull_request:
   merge_group:
@@ -13,9 +13,71 @@ concurrency:
 
 jobs:
   secret-scan:
-    uses: agiletec-inc/github-actions/.github/workflows/secret-scan.yml@main
+    name: scan
+    runs-on: ubuntu-latest
+    container:
+      image: node:26-bookworm
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Run gitleaks
+        shell: bash
+        env:
+          GITLEAKS_VERSION: '8.30.1'
+        run: |
+          set -euo pipefail
+          case "$(uname -m)" in
+            x86_64|amd64) arch=x64 ;;
+            aarch64|arm64) arch=arm64 ;;
+            *) echo "::error::unsupported arch $(uname -m)"; exit 1 ;;
+          esac
+          os=$(uname -s | tr '[:upper:]' '[:lower:]')
+          asset="gitleaks_${GITLEAKS_VERSION}_${os}_${arch}.tar.gz"
+          base_url="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
+          curl -fsSLO "${base_url}/${asset}"
+          curl -fsSLo checksums.txt "${base_url}/gitleaks_${GITLEAKS_VERSION}_checksums.txt"
+          grep "  ${asset}$" checksums.txt | sha256sum -c -
+          tar -xzf "${asset}" gitleaks
+          ./gitleaks version
+          config_args=()
+          if [ -f .gitleaks.toml ]; then config_args=(--config .gitleaks.toml); fi
+          case "$GITHUB_EVENT_NAME" in
+            pull_request)
+              ./gitleaks git "${config_args[@]}" --redact --no-banner --exit-code 1 --verbose \
+                --log-opts "${{ github.event.pull_request.base.sha }}..HEAD" .
+              ;;
+            merge_group)
+              ./gitleaks git "${config_args[@]}" --redact --no-banner --exit-code 1 --verbose \
+                --log-opts "${{ github.event.merge_group.base_sha }}..HEAD" .
+              ;;
+            push)
+              if [[ "${{ github.event.before }}" =~ ^0+$ ]]; then
+                ./gitleaks dir . "${config_args[@]}" --redact --no-banner --exit-code 1 --verbose
+              else
+                ./gitleaks git "${config_args[@]}" --redact --no-banner --exit-code 1 --verbose \
+                  --log-opts "${{ github.event.before }}..${{ github.sha }}" .
+              fi
+              ;;
+            *) ./gitleaks dir . "${config_args[@]}" --redact --no-banner --exit-code 1 --verbose ;;
+          esac
   ci:
-    uses: agiletec-inc/github-actions/.github/workflows/swift-ci.yml@main
-    with:
-      working-directory: apps/cmd-ime-swift
-      release-command: CMDIME_BUILD_MODE=local bash scripts/package.sh
+    name: ci
+    runs-on: macos-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: apps/cmd-ime-swift
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Swift version
+        run: swift --version
+      - name: Test
+        run: swift test
+      - name: Release build smoke
+        run: CMDIME_BUILD_MODE=local bash scripts/package.sh
