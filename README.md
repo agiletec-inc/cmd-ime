@@ -69,7 +69,7 @@ swift build -c release
 CMDIME_BUILD_MODE=local ./scripts/package.sh
 ```
 
-For distribution builds, set `CMDIME_SIGNING_IDENTITY` (Developer ID Application) and `CMDIME_SPARKLE_PUBLIC_ED_KEY`. `package.sh` falls back to ad-hoc signing when neither is set.
+For distribution builds, set `CMDIME_SIGNING_IDENTITY` to a Developer ID Application identity and `CMDIME_SPARKLE_PUBLIC_ED_KEY`. `package.sh` requires both and exits with an error if either is missing or if `CMDIME_SIGNING_IDENTITY` is not a Developer ID Application identity — there is no ad-hoc fallback for distribution builds. Local builds (`CMDIME_BUILD_MODE=local`) still fall back to ad-hoc signing when no signing identity is available.
 
 ## Development
 

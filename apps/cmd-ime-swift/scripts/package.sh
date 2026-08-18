@@ -16,6 +16,11 @@ ICON_SOURCE="$PROJECT_ROOT/../../AppIcon.icns"
 CACHE_DIR="$BUILD_DIR/local-cache"
 CLANG_MODULE_CACHE_DIR="$CACHE_DIR/clang-module-cache"
 SWIFTPM_CACHE_DIR="$CACHE_DIR/swiftpm"
+# Fixed (not `$(date)`-derived) so builds stay reproducible. Same legal entity as the
+# Developer ID Application certificate ("AGILE TECHNOLOGY, K.K."), but this is prose
+# (Finder "Get Info" / About panel), so it uses normal title case, not the certificate's
+# all-caps rendering. Range starts at the LICENSE copyright year.
+COPYRIGHT="Copyright © 2025–2026 Agile Technology, K.K. All rights reserved."
 BUILD_MODE="${CMDIME_BUILD_MODE:-distribution}"
 SPARKLE_KEY_ACCOUNT="${CMDIME_SPARKLE_KEY_ACCOUNT:-agiletec-inc-cmd-ime}"
 SPARKLE_GENERATE_KEYS_BIN="$BUILD_DIR/artifacts/sparkle/Sparkle/bin/generate_keys"
@@ -82,12 +87,16 @@ require_distribution_prerequisites() {
         exit 1
     fi
 
-    # Any stable identity (Apple Development or Developer ID Application) preserves
-    # TCC Accessibility grants across upgrades. Only ad-hoc signing ("-") is rejected
-    # because it produces a per-build cdhash that forces users to re-grant on every update.
-    if [[ "$SIGN_IDENTITY" == "-" ]]; then
-        echo "A code-signing identity is required for distribution builds (ad-hoc signing breaks TCC grants)." >&2
-        echo "Set CMDIME_SIGNING_IDENTITY or install a signing certificate." >&2
+    # Distribution builds must be signed with a Developer ID Application identity.
+    # It is the only identity that (a) carries an Apple-issued Team ID, which the
+    # hardened runtime's library validation needs to admit the bundled Sparkle
+    # framework, and (b) is notarizable. Self-signed and ad-hoc identities preserved
+    # TCC grants across upgrades too, but they cannot be hardened-runtime-signed or
+    # notarized, so Gatekeeper blocks first launch for anyone outside this machine.
+    if [[ "$SIGN_IDENTITY" != "Developer ID Application: "* ]]; then
+        echo "A 'Developer ID Application' identity is required for distribution builds." >&2
+        echo "Got: '$SIGN_IDENTITY'." >&2
+        echo "Set CMDIME_SIGNING_IDENTITY to a Developer ID Application identity, or install one." >&2
         exit 1
     fi
 }
@@ -118,7 +127,9 @@ sign_bundle_with_runtime() {
     # Team ID, so a hardened main app cannot load the bundled (also Team-ID-less)
     # Sparkle.framework — dyld kills it at launch with "different Team IDs". Apply the
     # hardened runtime only for Apple-issued certs (which carry a Team ID and are what
-    # we'd notarize); self-signed and local builds sign without it.
+    # we notarize); local/ad-hoc builds sign without it. Distribution builds are
+    # guaranteed to reach this function with a Developer ID identity by
+    # require_distribution_prerequisites, which rejects any other identity up front.
     if [[ "$BUILD_MODE" == "local" ]]; then
         codesign --force --sign "$SIGN_IDENTITY" "$@" "$path"
     elif [[ "$SIGN_IDENTITY" == "Developer ID Application: "* || "$SIGN_IDENTITY" == "Apple Development: "* ]]; then
@@ -212,6 +223,8 @@ cat > "$INFO_PLIST" <<EOF
     <string>https://raw.githubusercontent.com/agiletec-inc/cmd-ime/appcast/appcast.xml</string>
     <key>SUPublicEDKey</key>
     <string>$SPARKLE_PUBLIC_ED_KEY</string>
+    <key>NSHumanReadableCopyright</key>
+    <string>$COPYRIGHT</string>
 EOF
 
 if [[ -n "$ICON_NAME" ]]; then

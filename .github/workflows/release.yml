@@ -109,18 +109,16 @@ jobs:
           echo "needs_appcast=$NEEDS_APPCAST" >> $GITHUB_OUTPUT
           echo "🧭 needs_build=$NEEDS_BUILD needs_appcast=$NEEDS_APPCAST"
 
-      # A self-signed code-signing certificate gives the bundle a stable
-      # Designated Requirement (anchored to the cert SHA-1 + bundle id),
-      # which is what macOS TCC uses to remember Accessibility grants
-      # across `brew upgrade --cask cmd-ime`. Without this, ad-hoc signing
-      # produces a per-cdhash DR and the user has to re-grant Accessibility
-      # on every release. See Issue #23.
+      # A Developer ID Application certificate gives the bundle a stable
+      # Designated Requirement (anchored to the Apple-issued Team ID + bundle id),
+      # which is what macOS TCC uses to remember Accessibility grants across
+      # `brew upgrade --cask cmd-ime`, and it is the only identity that can carry
+      # the hardened runtime and be notarized. See Issue #23.
       #
-      # The step is gated on the secret being present so a release does not
-      # fail before the cert has been minted and uploaded to org secrets;
-      # `package.sh` falls back to ad-hoc when CMDIME_SIGNING_IDENTITY is
-      # empty. Once the cert is in place the Verify step below upgrades
-      # silent ad-hoc fallback to a hard failure.
+      # The step only reports availability; `package.sh` hard-fails the build
+      # below when no Developer ID Application identity is resolved, so a
+      # missing cert surfaces as a clear build failure rather than a silent
+      # ad-hoc fallback.
       - name: Check signing secret availability
         if: steps.phase.outputs.needs_build == 'true'
         id: signing
@@ -131,7 +129,7 @@ jobs:
             echo "available=true" >> $GITHUB_OUTPUT
           else
             echo "available=false" >> $GITHUB_OUTPUT
-            echo "::warning::CMDIME_SIGNING_CERT_P12_BASE64 is not set; release will fall back to ad-hoc signing (TCC grants will reset on upgrade)"
+            echo "::warning::CMDIME_SIGNING_CERT_P12_BASE64 is not set; the distribution build will fail (a Developer ID Application identity is required)"
           fi
 
       - name: Import code-signing certificate
@@ -191,16 +189,9 @@ jobs:
           set -euo pipefail
           codesign -dvv release/CmdIME.app 2>&1 | tee /tmp/codesign.log
 
-          if [ "${{ steps.signing.outputs.available }}" = "true" ]; then
-            # Cert is configured: ad-hoc fallback would silently regress TCC stability
-            if grep -q "Signature=adhoc" /tmp/codesign.log; then
-              echo "ERROR: bundle ended up ad-hoc signed despite cert being configured (identity import failed)" >&2
-              exit 1
-            fi
-            echo "OK: signed with stable identity"
-          else
-            echo "::warning::bundle is ad-hoc signed; expected because CMDIME_SIGNING_CERT_P12_BASE64 is not set"
-          fi
+          # Asserts Developer ID Application authority, hardened runtime, bundle
+          # structure and bundle id — the preconditions notarytool requires.
+          apps/cmd-ime-swift/scripts/verify-developer-id-signature.sh release/CmdIME.app
 
           # Guard against a signing-team change. Sparkle rejects an update whose code
           # signature is from a different Apple team than the installed app, so a silent
@@ -598,6 +589,11 @@ jobs:
             app "CmdIME.app"
 
             postflight do
+              # Strips the quarantine flag so Gatekeeper doesn't block first launch.
+              # Required while releases are not yet notarized (APPLE_ID/APPLE_PASSWORD/
+              # APPLE_TEAM_ID are not registered as of this writing). Once a Developer ID
+              # + notarized release has been verified end-to-end, re-evaluate whether this
+              # is still needed — removing it before that would break existing installs.
               system_command "/usr/bin/xattr",
                              args: ["-cr", "#{appdir}/CmdIME.app"],
                              sudo: false
