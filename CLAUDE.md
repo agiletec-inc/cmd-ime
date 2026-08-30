@@ -11,7 +11,8 @@ build/test/release commandはpackage manifest、Makefile、workflowから読む�
   正規化しない。
 - macOSはinput source変更等でevent tapを無効化する。heartbeat、Accessibility付与後retry、brew upgrade時の
   bundle置換監視を維持する。
-- release appcastは専用`appcast` branchが配信正本。mainの`appcast.xml`は空seedであり履歴を追記しない。
+- release appcastの配信正本はGitHub Release asset (`releases/latest/download/appcast.xml`)。既存クライアント移行中は
+  同じ累積feedを`appcast` branchへdual-publishし、branch writerはIssue #137の測定可能な完了条件まで削除しない。
 - native appなのでDockerを使わない。release signing/notarizationとlocal ad-hoc buildを混同しない。
 - ユーザー向け文字列は必ず`L(_:)`(Sources/CmdIMESwift/Localization.swift)経由。`swift build`/`swift test`は
   `Localizable.xcstrings`をコンパイルしない(Xcode専用機能)ため、`Sources/CmdIMESwift/Resources/<locale>.lproj/
