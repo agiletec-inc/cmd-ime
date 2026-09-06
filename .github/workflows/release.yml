@@ -597,23 +597,21 @@ jobs:
 
             app "CmdIME.app"
 
-            postflight do
-              system_command "/usr/bin/xattr",
-                             args: ["-cr", "#{appdir}/CmdIME.app"],
-                             sudo: false
+            postflight_steps do
+              run "/usr/bin/xattr",
+                  args: ["-cr", "{{appdir}}/CmdIME.app"],
+                  sudo: false
               # Refresh LaunchServices so the new bundle's icon and display
               # name are picked up immediately (otherwise Finder / System
               # Settings can show a stale entry).
-              lsregister = "/System/Library/Frameworks/CoreServices.framework/" \\
-                           "Frameworks/LaunchServices.framework/Support/lsregister"
-              system_command lsregister,
-                             args: ["-f", "#{appdir}/CmdIME.app"],
-                             sudo: false
+              run "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister",
+                  args: ["-f", "{{appdir}}/CmdIME.app"],
+                  sudo: false
               # Auto-launch the new build so the user doesn't have to fish
               # for it after every upgrade.
-              system_command "/usr/bin/open",
-                             args: ["#{appdir}/CmdIME.app"],
-                             sudo: false
+              run "/usr/bin/open",
+                  args: ["{{appdir}}/CmdIME.app"],
+                  sudo: false
             end
 
             # Gracefully quit the running menu bar agent before brew replaces
