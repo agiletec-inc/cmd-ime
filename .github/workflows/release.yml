@@ -286,6 +286,7 @@ jobs:
         if: steps.phase.outputs.needs_build == 'false' && steps.phase.outputs.needs_appcast == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CMDIME_EXPECTED_TEAM_ID: ${{ vars.CMDIME_EXPECTED_TEAM_ID }}
         run: |
           set -euo pipefail
           VERSION="${{ steps.version.outputs.version }}"
@@ -296,7 +297,13 @@ jobs:
             --pattern "cmd-ime-${VERSION}.zip" \
             --clobber
 
-          ls -la "cmd-ime-${VERSION}.dmg" "cmd-ime-${VERSION}.zip"
+          # Recovery must enforce the same distribution requirements as a build.
+          recovered_bundle=$(mktemp -d "${RUNNER_TEMP}/cmd-ime-recovery.XXXXXX")
+          trap 'rm -rf "$recovered_bundle"' EXIT
+          ditto -x -k "cmd-ime-${VERSION}.zip" "$recovered_bundle"
+          bash .github/scripts/verify-distribution.sh "$recovered_bundle/CmdIME.app"
+          xcrun stapler validate "$recovered_bundle/CmdIME.app"
+          xcrun stapler validate "cmd-ime-${VERSION}.dmg"
 
       - name: Calculate SHA256
         if: steps.phase.outputs.needs_appcast == 'true'
