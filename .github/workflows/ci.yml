@@ -20,7 +20,9 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Test distribution signing policy
-        run: python3 .github/scripts/test-release-signing.py
+        run: |
+          python3 .github/scripts/test-release-signing.py
+          python3 .github/scripts/test-release-feed.py
   secret-scan:
     name: scan
     runs-on: ubuntu-latest

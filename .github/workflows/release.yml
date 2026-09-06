@@ -5,6 +5,14 @@ on:
     types: [closed]
     branches: [main]
   workflow_dispatch:
+    inputs:
+      local_artifacts:
+        description: Finalize an existing locally signed and notarized release; tap PR is handled locally
+        type: boolean
+        default: false
+      zip_sha256:
+        description: Required ZIP SHA256 for local-artifact finalization
+        type: string
 
 # Serialize releases — never run two release jobs at once, and never cancel
 # one mid-flight (it pushes tags, a GitHub Release, and the cask PR).
@@ -23,12 +31,13 @@ jobs:
       contents: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
       - name: Cache Swift build
-        uses: actions/cache@v4
+        if: inputs.local_artifacts != true
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: apps/cmd-ime-swift/.build
           key: ${{ runner.os }}-spm-${{ hashFiles('apps/cmd-ime-swift/Package.resolved') }}
@@ -44,17 +53,17 @@ jobs:
             exit 1
           fi
 
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "📦 Release version from manifest.toml: $VERSION"
 
       - name: Check if already released
         id: check_tag
         run: |
           if git rev-parse "v${{steps.version.outputs.version}}" >/dev/null 2>&1; then
-            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "exists=true" >> "$GITHUB_OUTPUT"
             echo "⚠️  Tag v${{steps.version.outputs.version}} already exists, skipping"
           else
-            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "exists=false" >> "$GITHUB_OUTPUT"
             echo "✅ Will create release v${{steps.version.outputs.version}}"
           fi
 
@@ -80,16 +89,16 @@ jobs:
 
           if [ "$LS_EXIT" -eq 0 ]; then
             git fetch origin appcast
-            git show FETCH_HEAD:appcast.xml > /tmp/appcast_current.xml
-            if grep -q "<sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>" /tmp/appcast_current.xml; then
-              echo "missing=false" >> $GITHUB_OUTPUT
+            git show FETCH_HEAD:appcast.xml > "${RUNNER_TEMP}/appcast_current.xml"
+            if grep -q "<sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>" "${RUNNER_TEMP}/appcast_current.xml"; then
+              echo "missing=false" >> "$GITHUB_OUTPUT"
               echo "✅ appcast branch already has an entry for v${VERSION}"
             else
-              echo "missing=true" >> $GITHUB_OUTPUT
+              echo "missing=true" >> "$GITHUB_OUTPUT"
               echo "⚠️  appcast branch exists but has no entry for v${VERSION}"
             fi
           elif [ "$LS_EXIT" -eq 2 ]; then
-            echo "missing=true" >> $GITHUB_OUTPUT
+            echo "missing=true" >> "$GITHUB_OUTPUT"
             echo "📄 appcast branch not found — treating the appcast entry as missing"
           else
             echo "::error::could not query origin for the appcast branch (git ls-remote exit $LS_EXIT)" >&2
@@ -104,6 +113,10 @@ jobs:
         id: phase
         run: |
           set -euo pipefail
+          if [ "${{ inputs.local_artifacts }}" = "true" ] && [ "${{ steps.check_tag.outputs.exists }}" != "true" ]; then
+            echo "::error::Local-artifact finalization requires an existing release tag"
+            exit 1
+          fi
           if [ "${{ steps.check_tag.outputs.exists }}" = "false" ]; then
             NEEDS_BUILD=true
           else
@@ -111,8 +124,8 @@ jobs:
           fi
           NEEDS_APPCAST="${{ steps.check_appcast.outputs.missing }}"
 
-          echo "needs_build=$NEEDS_BUILD" >> $GITHUB_OUTPUT
-          echo "needs_appcast=$NEEDS_APPCAST" >> $GITHUB_OUTPUT
+          echo "needs_build=$NEEDS_BUILD" >> "$GITHUB_OUTPUT"
+          echo "needs_appcast=$NEEDS_APPCAST" >> "$GITHUB_OUTPUT"
           echo "🧭 needs_build=$NEEDS_BUILD needs_appcast=$NEEDS_APPCAST"
 
       # Public releases require Apple distribution signing and notarization.
@@ -287,6 +300,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CMDIME_EXPECTED_TEAM_ID: ${{ vars.CMDIME_EXPECTED_TEAM_ID }}
+          LOCAL_ARTIFACTS: ${{ inputs.local_artifacts }}
+          EXPECTED_ZIP_SHA256: ${{ inputs.zip_sha256 }}
         run: |
           set -euo pipefail
           VERSION="${{ steps.version.outputs.version }}"
@@ -296,6 +311,11 @@ jobs:
             --pattern "cmd-ime-${VERSION}.dmg" \
             --pattern "cmd-ime-${VERSION}.zip" \
             --clobber
+
+          if [ "$LOCAL_ARTIFACTS" = "true" ]; then
+            [[ "$EXPECTED_ZIP_SHA256" =~ ^[a-f0-9]{64}$ ]]
+            printf '%s  %s\n' "$EXPECTED_ZIP_SHA256" "cmd-ime-${VERSION}.zip" | shasum -a 256 -c -
+          fi
 
           # Recovery must enforce the same distribution requirements as a build.
           recovered_bundle=$(mktemp -d "${RUNNER_TEMP}/cmd-ime-recovery.XXXXXX")
@@ -311,7 +331,7 @@ jobs:
         run: |
           VERSION=${{steps.version.outputs.version}}
           SHA256=$(shasum -a 256 "cmd-ime-${VERSION}.dmg" | awk '{print $1}')
-          echo "sha256=$SHA256" >> $GITHUB_OUTPUT
+          echo "sha256=$SHA256" >> "$GITHUB_OUTPUT"
           echo "🔐 SHA256: $SHA256"
 
       # In the full-run path the Sparkle CLI tools are already resolved as a
@@ -377,8 +397,8 @@ jobs:
           fi
 
           ZIP_SIZE=$(wc -c < "$ZIP_PATH" | tr -d '[:space:]')
-          echo "edSignature=$SIG" >> $GITHUB_OUTPUT
-          echo "zipSize=$ZIP_SIZE" >> $GITHUB_OUTPUT
+          echo "edSignature=$SIG" >> "$GITHUB_OUTPUT"
+          echo "zipSize=$ZIP_SIZE" >> "$GITHUB_OUTPUT"
           echo "🔐 EdDSA signature: $SIG"
           echo "📦 ZIP size: ${ZIP_SIZE} bytes"
 
@@ -457,36 +477,27 @@ jobs:
 
           echo "✅ Release v${VERSION} created successfully!"
 
-      # Publish the accumulated appcast to a dedicated, unprotected `appcast`
-      # branch. SUFeedURL points at this branch's raw URL, so the feed no longer
-      # depends on the `latest` release staying in place, and every release's
-      # <item> is retained for version history and Sparkle delta generation.
-      # Runs after the release exists because the <enclosure> URL references the
-      # release download. The branch is a single force-pushed commit — its git
-      # history is irrelevant; the version history lives inside appcast.xml.
+      # Preserve feed history and reject a concurrent update with a normal push.
       - name: Publish appcast.xml to appcast branch
         if: steps.phase.outputs.needs_appcast == 'true'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           VERSION=${{ steps.version.outputs.version }}
-
           WORKDIR=$(mktemp -d)
-          cp appcast.xml "$WORKDIR/appcast.xml"
-          cd "$WORKDIR"
-
-          git init -q
-          git checkout -q -b appcast
-          git add appcast.xml
-          git -c user.name="github-actions[bot]" \
-              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
-              commit -q -m "chore: publish appcast.xml for v${VERSION}"
-          git push -f \
-            "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
-            appcast
-
-          echo "✅ appcast.xml published to the appcast branch"
+          git fetch origin appcast
+          git worktree add --detach "$WORKDIR/feed" FETCH_HEAD
+          trap 'git worktree remove "$WORKDIR/feed"' EXIT
+          # Abort if another publisher changed the feed since generation.
+          git show FETCH_HEAD:appcast.xml | cmp - "${RUNNER_TEMP}/appcast_current.xml"
+          cp appcast.xml "$WORKDIR/feed/appcast.xml"
+          git -C "$WORKDIR/feed" add appcast.xml
+          git -C "$WORKDIR/feed" -c user.name="github-actions[bot]" \
+            -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -m "chore: publish appcast.xml for v${VERSION}"
+          git -C "$WORKDIR/feed" push origin HEAD:refs/heads/appcast
+          gh release upload "v${VERSION}" appcast.xml --clobber
 
       # Mint a 1-hour GitHub App installation token instead of using a
       # static PAT. The homebrew-publisher App is installed on
@@ -494,9 +505,9 @@ jobs:
       # pattern as airis-workspace's release.yml. This eliminates the
       # per-repo HOMEBREW_TAP_TOKEN PAT (which expires and breaks silently).
       - name: Generate Homebrew tap App token
-        if: steps.phase.outputs.needs_appcast == 'true'
+        if: steps.phase.outputs.needs_appcast == 'true' && inputs.local_artifacts != true
         id: app-token
-        uses: actions/create-github-app-token@v3
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
         with:
           client-id: ${{ vars.HOMEBREW_TAP_PUBLISHER_CLIENT_ID }}
           private-key: ${{ secrets.HOMEBREW_TAP_PUBLISHER_PRIVATE_KEY }}
@@ -513,7 +524,7 @@ jobs:
       # recognizes as a verified author. Pulling `app-slug` from the token
       # outputs means renaming the App needs no workflow edits.
       - name: Resolve App bot identity
-        if: steps.phase.outputs.needs_appcast == 'true'
+        if: steps.phase.outputs.needs_appcast == 'true' && inputs.local_artifacts != true
         id: bot
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
@@ -526,7 +537,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Update Homebrew cask via PR
-        if: steps.phase.outputs.needs_appcast == 'true'
+        if: steps.phase.outputs.needs_appcast == 'true' && inputs.local_artifacts != true
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
