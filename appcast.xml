@@ -150,5 +150,16 @@
                 length="2817974"
                 type="application/zip" />
         </item>
+        <item>
+            <title>Version 2.5.1</title>
+            <pubDate>Sun, 06 Sep 2026 23:20:10 +0000</pubDate>
+            <sparkle:version>20501</sparkle:version>
+            <sparkle:shortVersionString>2.5.1</sparkle:shortVersionString>
+            <enclosure
+                url="https://github.com/agiletec-inc/cmd-ime/releases/download/v2.5.1/cmd-ime-2.5.1.zip"
+                sparkle:edSignature="qbOsxgAG+kBEGgiE7Nqv3xTAC+dLa3v3xs3h0T/jzCNx+JHg726fX5puvzgSFkfNuDu9veietRmhd8y+Lf9NBw=="
+                length="2976160"
+                type="application/zip" />
+        </item>
     </channel>
 </rss>
