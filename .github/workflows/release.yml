@@ -115,30 +115,35 @@ jobs:
           echo "needs_appcast=$NEEDS_APPCAST" >> $GITHUB_OUTPUT
           echo "🧭 needs_build=$NEEDS_BUILD needs_appcast=$NEEDS_APPCAST"
 
-      # A self-signed code-signing certificate gives the bundle a stable
-      # Designated Requirement (anchored to the cert SHA-1 + bundle id),
-      # which is what macOS TCC uses to remember Accessibility grants
-      # across `brew upgrade --cask cmd-ime`. Without this, ad-hoc signing
-      # produces a per-cdhash DR and the user has to re-grant Accessibility
-      # on every release. See Issue #23.
-      #
-      # The step is gated on the secret being present so a release does not
-      # fail before the cert has been minted and uploaded to org secrets;
-      # `package.sh` falls back to ad-hoc when CMDIME_SIGNING_IDENTITY is
-      # empty. Once the cert is in place the Verify step below upgrades
-      # silent ad-hoc fallback to a hard failure.
-      - name: Check signing secret availability
+      # Public releases require Apple distribution signing and notarization.
+      # Validate before importing keys or spending time on a build.
+      - name: Validate distribution credentials
         if: steps.phase.outputs.needs_build == 'true'
         id: signing
         env:
           CERT_P12_BASE64: ${{ secrets.CMDIME_SIGNING_CERT_P12_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.CMDIME_SIGNING_CERT_PASSWORD }}
+          SIGNING_IDENTITY: ${{ vars.CMDIME_SIGNING_IDENTITY }}
+          EXPECTED_TEAM_ID: ${{ vars.CMDIME_EXPECTED_TEAM_ID }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+          SPARKLE_PUBLIC_KEY: ${{ vars.CMDIME_SPARKLE_PUBLIC_ED_KEY || secrets.CMDIME_SPARKLE_PUBLIC_ED_KEY }}
+          SPARKLE_PRIVATE_KEY: ${{ secrets.CMDIME_SPARKLE_PRIVATE_ED_KEY }}
         run: |
-          if [ -n "$CERT_P12_BASE64" ]; then
-            echo "available=true" >> $GITHUB_OUTPUT
-          else
-            echo "available=false" >> $GITHUB_OUTPUT
-            echo "::warning::CMDIME_SIGNING_CERT_P12_BASE64 is not set; release will fall back to ad-hoc signing (TCC grants will reset on upgrade)"
-          fi
+          set -euo pipefail
+          for input in CERT_P12_BASE64 CERT_PASSWORD SIGNING_IDENTITY EXPECTED_TEAM_ID APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID SPARKLE_PUBLIC_KEY SPARKLE_PRIVATE_KEY; do
+            if [ -z "${!input}" ]; then
+              echo "::error::Required distribution input is missing: $input"
+              exit 1
+            fi
+          done
+          case "$SIGNING_IDENTITY" in
+            "Developer ID Application: "*) ;;
+            *) echo "::error::Distribution requires Developer ID Application"; exit 1 ;;
+          esac
+          test "$APPLE_TEAM_ID" = "$EXPECTED_TEAM_ID"
+          echo "available=true" >> "$GITHUB_OUTPUT"
 
       - name: Import code-signing certificate
         if: steps.phase.outputs.needs_build == 'true' && steps.signing.outputs.available == 'true'
@@ -193,50 +198,7 @@ jobs:
         if: steps.phase.outputs.needs_build == 'true'
         env:
           CMDIME_EXPECTED_TEAM_ID: ${{ vars.CMDIME_EXPECTED_TEAM_ID }}
-        run: |
-          set -euo pipefail
-          codesign -dvv release/CmdIME.app 2>&1 | tee /tmp/codesign.log
-
-          if [ "${{ steps.signing.outputs.available }}" = "true" ]; then
-            # Cert is configured: ad-hoc fallback would silently regress TCC stability
-            if grep -q "Signature=adhoc" /tmp/codesign.log; then
-              echo "ERROR: bundle ended up ad-hoc signed despite cert being configured (identity import failed)" >&2
-              exit 1
-            fi
-            echo "OK: signed with stable identity"
-          else
-            echo "::warning::bundle is ad-hoc signed; expected because CMDIME_SIGNING_CERT_P12_BASE64 is not set"
-          fi
-
-          # Guard against a signing-team change. Sparkle rejects an update whose code
-          # signature is from a different Apple team than the installed app, so a silent
-          # team switch breaks auto-updates for every existing user (see v2.3.2 -> v2.4.0
-          # where RYYXD43X4N -> X494AU8658 produced "An error occurred while running the
-          # updater"). Fail the release before publishing if the team drifts.
-          if [ -n "${CMDIME_EXPECTED_TEAM_ID:-}" ]; then
-            ACTUAL_TEAM=$(sed -n 's/.*TeamIdentifier=\([A-Z0-9]*\).*/\1/p' /tmp/codesign.log | head -1)
-            if [ "$ACTUAL_TEAM" != "$CMDIME_EXPECTED_TEAM_ID" ]; then
-              echo "ERROR: signing TeamIdentifier '$ACTUAL_TEAM' != expected '$CMDIME_EXPECTED_TEAM_ID'." >&2
-              echo "A team change breaks Sparkle auto-updates for existing users. Restore the prior" >&2
-              echo "CMDIME_SIGNING_IDENTITY/cert, or — if the change is deliberate — bump the" >&2
-              echo "CMDIME_EXPECTED_TEAM_ID repo variable (existing users will need a manual reinstall)." >&2
-              exit 1
-            fi
-            echo "OK: TeamIdentifier matches expected ($CMDIME_EXPECTED_TEAM_ID)"
-          fi
-
-      - name: Check notarization availability
-        if: steps.phase.outputs.needs_build == 'true'
-        id: notarize
-        env:
-          _APPLE_ID: ${{ secrets.APPLE_ID }}
-        run: |
-          if [ -n "$_APPLE_ID" ]; then
-            echo "available=true" >> $GITHUB_OUTPUT
-          else
-            echo "available=false" >> $GITHUB_OUTPUT
-            echo "::warning::APPLE_ID is not set; skipping notarization"
-          fi
+        run: bash .github/scripts/verify-distribution.sh release/CmdIME.app
 
       # Notarize and staple the .app BEFORE building the DMG, so the app a user
       # drags out of the DMG carries its own offline-verifiable ticket. notarytool
@@ -246,7 +208,7 @@ jobs:
       # DMG's internal copy un-stapled — first launch then forced an online
       # Gatekeeper check (requires network). See #105.
       - name: Notarize and staple app
-        if: steps.phase.outputs.needs_build == 'true' && steps.notarize.outputs.available == 'true'
+        if: steps.phase.outputs.needs_build == 'true'
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
@@ -265,6 +227,7 @@ jobs:
 
           echo "✅ Notarized! Stapling the app bundle..."
           xcrun stapler staple "release/CmdIME.app"
+          xcrun stapler validate "release/CmdIME.app"
 
       - name: Create DMG
         if: steps.phase.outputs.needs_build == 'true'
@@ -281,7 +244,7 @@ jobs:
           echo "✅ DMG created: cmd-ime-${VERSION}.dmg"
 
       - name: Notarize and staple DMG
-        if: steps.phase.outputs.needs_build == 'true' && steps.notarize.outputs.available == 'true'
+        if: steps.phase.outputs.needs_build == 'true'
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
@@ -300,6 +263,7 @@ jobs:
 
           echo "✅ Notarization successful! Stapling the DMG..."
           xcrun stapler staple "$DMG_PATH"
+          xcrun stapler validate "$DMG_PATH"
 
       - name: Create ZIP
         if: steps.phase.outputs.needs_build == 'true'

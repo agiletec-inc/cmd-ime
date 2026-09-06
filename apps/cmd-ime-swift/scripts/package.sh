@@ -82,12 +82,9 @@ require_distribution_prerequisites() {
         exit 1
     fi
 
-    # Any stable identity (Apple Development or Developer ID Application) preserves
-    # TCC Accessibility grants across upgrades. Only ad-hoc signing ("-") is rejected
-    # because it produces a per-build cdhash that forces users to re-grant on every update.
-    if [[ "$SIGN_IDENTITY" == "-" ]]; then
-        echo "A code-signing identity is required for distribution builds (ad-hoc signing breaks TCC grants)." >&2
-        echo "Set CMDIME_SIGNING_IDENTITY or install a signing certificate." >&2
+    if [[ "$SIGN_IDENTITY" != "Developer ID Application: "* ]]; then
+        echo "Developer ID Application signing is required for distribution builds." >&2
+        echo "Use CMDIME_BUILD_MODE=local for development-only builds." >&2
         exit 1
     fi
 }
