@@ -511,7 +511,7 @@ jobs:
             -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
             commit -m "chore: publish appcast.xml for v${VERSION}"
           git -C "$WORKDIR/feed" push origin HEAD:refs/heads/appcast
-          gh release upload "v${VERSION}" appcast.xml --clobber
+          # SUFeedURL uses the appcast branch. Published release assets are immutable.
 
       # Mint a 1-hour GitHub App installation token instead of using a
       # static PAT. The homebrew-publisher App is installed on
