@@ -1,6 +1,9 @@
 name: Release to Homebrew
 
 on:
+  pull_request:
+    types: [closed]
+    branches: [main]
   workflow_dispatch:
 
 # Serialize releases — never run two release jobs at once, and never cancel
@@ -11,6 +14,9 @@ concurrency:
 
 jobs:
   release:
+    # Publish after a merge; closing an unmerged PR must not release.
+    # Manual dispatch remains available for recovery of interrupted releases.
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
     runs-on: macos-latest
     timeout-minutes: 45
     permissions:
@@ -642,15 +648,14 @@ jobs:
           git commit -m "Update cmd-ime to v${VERSION}"
           git push --set-upstream origin "$BRANCH"
 
-          # Open and immediately squash-merge. The App is a bypass actor on
-          # the `Homebrew tap protection` ruleset (bypass_mode: pull_request)
-          # so the merge succeeds even with required reviews.
+          # Use the merge method required by the organization ruleset and
+          # wait for the tap's required checks through GitHub auto-merge.
           PR_URL=$(gh pr create \
             --base "$(gh repo view --json defaultBranchRef --jq .defaultBranchRef.name)" \
             --head "$BRANCH" \
             --title "chore(cask): update cmd-ime to v${VERSION}" \
-            --body "Automated cask update from \`agiletec-inc/cmd-ime@v${VERSION}\`. The publisher App bypasses required-review enforcement; this PR merges immediately.")
+            --body "Automated cask update from \`agiletec-inc/cmd-ime@v${VERSION}\`. Auto-merge waits for the tap's required checks.")
 
-          gh pr merge --squash --delete-branch "$PR_URL"
+          gh pr merge --merge --auto --delete-branch "$PR_URL"
 
-          echo "✅ Homebrew cask updated to v${VERSION}"
+          echo "✅ Homebrew cask PR submitted for v${VERSION}: $PR_URL"
