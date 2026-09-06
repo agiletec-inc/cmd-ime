@@ -402,6 +402,20 @@ jobs:
           echo "🔐 EdDSA signature: $SIG"
           echo "📦 ZIP size: ${ZIP_SIZE} bytes"
 
+      - name: Verify Sparkle signature against the app public key
+        if: steps.phase.outputs.needs_appcast == 'true'
+        env:
+          UPDATE_SIGNATURE: ${{ steps.sparkle.outputs.edSignature }}
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          VERIFY_DIR=$(mktemp -d "${RUNNER_TEMP}/sparkle-verify.XXXXXX")
+          trap 'rm -rf "$VERIFY_DIR"' EXIT
+          ditto -x -k "cmd-ime-${VERSION}.zip" "$VERIFY_DIR"
+          swift .github/scripts/verify-update.swift \
+            "$VERIFY_DIR/CmdIME.app/Contents/Info.plist" \
+            "cmd-ime-${VERSION}.zip" "$UPDATE_SIGNATURE"
+
       - name: Update appcast.xml
         if: steps.phase.outputs.needs_appcast == 'true'
         run: |
