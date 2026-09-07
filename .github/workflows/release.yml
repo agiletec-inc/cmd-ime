@@ -1,7 +1,18 @@
 name: Release to Homebrew
 
 on:
+  pull_request:
+    types: [closed]
+    branches: [main]
   workflow_dispatch:
+    inputs:
+      local_artifacts:
+        description: Finalize an existing locally signed and notarized release; tap PR is handled locally
+        type: boolean
+        default: false
+      zip_sha256:
+        description: Required ZIP SHA256 for local-artifact finalization
+        type: string
 
 # Serialize releases — never run two release jobs at once, and never cancel
 # one mid-flight (it pushes tags, a GitHub Release, and the cask PR).
@@ -11,18 +22,22 @@ concurrency:
 
 jobs:
   release:
+    # Publish after a merge; closing an unmerged PR must not release.
+    # Manual dispatch remains available for recovery of interrupted releases.
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
     runs-on: macos-latest
     timeout-minutes: 45
     permissions:
       contents: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
       - name: Cache Swift build
-        uses: actions/cache@v4
+        if: inputs.local_artifacts != true
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: apps/cmd-ime-swift/.build
           key: ${{ runner.os }}-spm-${{ hashFiles('apps/cmd-ime-swift/Package.resolved') }}
@@ -38,17 +53,17 @@ jobs:
             exit 1
           fi
 
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "📦 Release version from manifest.toml: $VERSION"
 
       - name: Check if already released
         id: check_tag
         run: |
           if git rev-parse "v${{steps.version.outputs.version}}" >/dev/null 2>&1; then
-            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "exists=true" >> "$GITHUB_OUTPUT"
             echo "⚠️  Tag v${{steps.version.outputs.version}} already exists, skipping"
           else
-            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "exists=false" >> "$GITHUB_OUTPUT"
             echo "✅ Will create release v${{steps.version.outputs.version}}"
           fi
 
@@ -74,16 +89,16 @@ jobs:
 
           if [ "$LS_EXIT" -eq 0 ]; then
             git fetch origin appcast
-            git show FETCH_HEAD:appcast.xml > /tmp/appcast_current.xml
-            if grep -q "<sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>" /tmp/appcast_current.xml; then
-              echo "missing=false" >> $GITHUB_OUTPUT
+            git show FETCH_HEAD:appcast.xml > "${RUNNER_TEMP}/appcast_current.xml"
+            if grep -q "<sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>" "${RUNNER_TEMP}/appcast_current.xml"; then
+              echo "missing=false" >> "$GITHUB_OUTPUT"
               echo "✅ appcast branch already has an entry for v${VERSION}"
             else
-              echo "missing=true" >> $GITHUB_OUTPUT
+              echo "missing=true" >> "$GITHUB_OUTPUT"
               echo "⚠️  appcast branch exists but has no entry for v${VERSION}"
             fi
           elif [ "$LS_EXIT" -eq 2 ]; then
-            echo "missing=true" >> $GITHUB_OUTPUT
+            echo "missing=true" >> "$GITHUB_OUTPUT"
             echo "📄 appcast branch not found — treating the appcast entry as missing"
           else
             echo "::error::could not query origin for the appcast branch (git ls-remote exit $LS_EXIT)" >&2
@@ -98,6 +113,10 @@ jobs:
         id: phase
         run: |
           set -euo pipefail
+          if [ "${{ inputs.local_artifacts }}" = "true" ] && [ "${{ steps.check_tag.outputs.exists }}" != "true" ]; then
+            echo "::error::Local-artifact finalization requires an existing release tag"
+            exit 1
+          fi
           if [ "${{ steps.check_tag.outputs.exists }}" = "false" ]; then
             NEEDS_BUILD=true
           else
@@ -105,34 +124,39 @@ jobs:
           fi
           NEEDS_APPCAST="${{ steps.check_appcast.outputs.missing }}"
 
-          echo "needs_build=$NEEDS_BUILD" >> $GITHUB_OUTPUT
-          echo "needs_appcast=$NEEDS_APPCAST" >> $GITHUB_OUTPUT
+          echo "needs_build=$NEEDS_BUILD" >> "$GITHUB_OUTPUT"
+          echo "needs_appcast=$NEEDS_APPCAST" >> "$GITHUB_OUTPUT"
           echo "🧭 needs_build=$NEEDS_BUILD needs_appcast=$NEEDS_APPCAST"
 
-      # A self-signed code-signing certificate gives the bundle a stable
-      # Designated Requirement (anchored to the cert SHA-1 + bundle id),
-      # which is what macOS TCC uses to remember Accessibility grants
-      # across `brew upgrade --cask cmd-ime`. Without this, ad-hoc signing
-      # produces a per-cdhash DR and the user has to re-grant Accessibility
-      # on every release. See Issue #23.
-      #
-      # The step is gated on the secret being present so a release does not
-      # fail before the cert has been minted and uploaded to org secrets;
-      # `package.sh` falls back to ad-hoc when CMDIME_SIGNING_IDENTITY is
-      # empty. Once the cert is in place the Verify step below upgrades
-      # silent ad-hoc fallback to a hard failure.
-      - name: Check signing secret availability
+      # Public releases require Apple distribution signing and notarization.
+      # Validate before importing keys or spending time on a build.
+      - name: Validate distribution credentials
         if: steps.phase.outputs.needs_build == 'true'
         id: signing
         env:
           CERT_P12_BASE64: ${{ secrets.CMDIME_SIGNING_CERT_P12_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.CMDIME_SIGNING_CERT_PASSWORD }}
+          SIGNING_IDENTITY: ${{ vars.CMDIME_SIGNING_IDENTITY }}
+          EXPECTED_TEAM_ID: ${{ vars.CMDIME_EXPECTED_TEAM_ID }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+          SPARKLE_PUBLIC_KEY: ${{ vars.CMDIME_SPARKLE_PUBLIC_ED_KEY || secrets.CMDIME_SPARKLE_PUBLIC_ED_KEY }}
+          SPARKLE_PRIVATE_KEY: ${{ secrets.CMDIME_SPARKLE_PRIVATE_ED_KEY }}
         run: |
-          if [ -n "$CERT_P12_BASE64" ]; then
-            echo "available=true" >> $GITHUB_OUTPUT
-          else
-            echo "available=false" >> $GITHUB_OUTPUT
-            echo "::warning::CMDIME_SIGNING_CERT_P12_BASE64 is not set; release will fall back to ad-hoc signing (TCC grants will reset on upgrade)"
-          fi
+          set -euo pipefail
+          for input in CERT_P12_BASE64 CERT_PASSWORD SIGNING_IDENTITY EXPECTED_TEAM_ID APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID SPARKLE_PUBLIC_KEY SPARKLE_PRIVATE_KEY; do
+            if [ -z "${!input}" ]; then
+              echo "::error::Required distribution input is missing: $input"
+              exit 1
+            fi
+          done
+          case "$SIGNING_IDENTITY" in
+            "Developer ID Application: "*) ;;
+            *) echo "::error::Distribution requires Developer ID Application"; exit 1 ;;
+          esac
+          test "$APPLE_TEAM_ID" = "$EXPECTED_TEAM_ID"
+          echo "available=true" >> "$GITHUB_OUTPUT"
 
       - name: Import code-signing certificate
         if: steps.phase.outputs.needs_build == 'true' && steps.signing.outputs.available == 'true'
@@ -187,50 +211,7 @@ jobs:
         if: steps.phase.outputs.needs_build == 'true'
         env:
           CMDIME_EXPECTED_TEAM_ID: ${{ vars.CMDIME_EXPECTED_TEAM_ID }}
-        run: |
-          set -euo pipefail
-          codesign -dvv release/CmdIME.app 2>&1 | tee /tmp/codesign.log
-
-          if [ "${{ steps.signing.outputs.available }}" = "true" ]; then
-            # Cert is configured: ad-hoc fallback would silently regress TCC stability
-            if grep -q "Signature=adhoc" /tmp/codesign.log; then
-              echo "ERROR: bundle ended up ad-hoc signed despite cert being configured (identity import failed)" >&2
-              exit 1
-            fi
-            echo "OK: signed with stable identity"
-          else
-            echo "::warning::bundle is ad-hoc signed; expected because CMDIME_SIGNING_CERT_P12_BASE64 is not set"
-          fi
-
-          # Guard against a signing-team change. Sparkle rejects an update whose code
-          # signature is from a different Apple team than the installed app, so a silent
-          # team switch breaks auto-updates for every existing user (see v2.3.2 -> v2.4.0
-          # where RYYXD43X4N -> X494AU8658 produced "An error occurred while running the
-          # updater"). Fail the release before publishing if the team drifts.
-          if [ -n "${CMDIME_EXPECTED_TEAM_ID:-}" ]; then
-            ACTUAL_TEAM=$(sed -n 's/.*TeamIdentifier=\([A-Z0-9]*\).*/\1/p' /tmp/codesign.log | head -1)
-            if [ "$ACTUAL_TEAM" != "$CMDIME_EXPECTED_TEAM_ID" ]; then
-              echo "ERROR: signing TeamIdentifier '$ACTUAL_TEAM' != expected '$CMDIME_EXPECTED_TEAM_ID'." >&2
-              echo "A team change breaks Sparkle auto-updates for existing users. Restore the prior" >&2
-              echo "CMDIME_SIGNING_IDENTITY/cert, or — if the change is deliberate — bump the" >&2
-              echo "CMDIME_EXPECTED_TEAM_ID repo variable (existing users will need a manual reinstall)." >&2
-              exit 1
-            fi
-            echo "OK: TeamIdentifier matches expected ($CMDIME_EXPECTED_TEAM_ID)"
-          fi
-
-      - name: Check notarization availability
-        if: steps.phase.outputs.needs_build == 'true'
-        id: notarize
-        env:
-          _APPLE_ID: ${{ secrets.APPLE_ID }}
-        run: |
-          if [ -n "$_APPLE_ID" ]; then
-            echo "available=true" >> $GITHUB_OUTPUT
-          else
-            echo "available=false" >> $GITHUB_OUTPUT
-            echo "::warning::APPLE_ID is not set; skipping notarization"
-          fi
+        run: bash .github/scripts/verify-distribution.sh release/CmdIME.app
 
       # Notarize and staple the .app BEFORE building the DMG, so the app a user
       # drags out of the DMG carries its own offline-verifiable ticket. notarytool
@@ -240,7 +221,7 @@ jobs:
       # DMG's internal copy un-stapled — first launch then forced an online
       # Gatekeeper check (requires network). See #105.
       - name: Notarize and staple app
-        if: steps.phase.outputs.needs_build == 'true' && steps.notarize.outputs.available == 'true'
+        if: steps.phase.outputs.needs_build == 'true'
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
@@ -259,6 +240,7 @@ jobs:
 
           echo "✅ Notarized! Stapling the app bundle..."
           xcrun stapler staple "release/CmdIME.app"
+          xcrun stapler validate "release/CmdIME.app"
 
       - name: Create DMG
         if: steps.phase.outputs.needs_build == 'true'
@@ -275,7 +257,7 @@ jobs:
           echo "✅ DMG created: cmd-ime-${VERSION}.dmg"
 
       - name: Notarize and staple DMG
-        if: steps.phase.outputs.needs_build == 'true' && steps.notarize.outputs.available == 'true'
+        if: steps.phase.outputs.needs_build == 'true'
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
@@ -294,6 +276,7 @@ jobs:
 
           echo "✅ Notarization successful! Stapling the DMG..."
           xcrun stapler staple "$DMG_PATH"
+          xcrun stapler validate "$DMG_PATH"
 
       - name: Create ZIP
         if: steps.phase.outputs.needs_build == 'true'
@@ -316,6 +299,9 @@ jobs:
         if: steps.phase.outputs.needs_build == 'false' && steps.phase.outputs.needs_appcast == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CMDIME_EXPECTED_TEAM_ID: ${{ vars.CMDIME_EXPECTED_TEAM_ID }}
+          LOCAL_ARTIFACTS: ${{ inputs.local_artifacts }}
+          EXPECTED_ZIP_SHA256: ${{ inputs.zip_sha256 }}
         run: |
           set -euo pipefail
           VERSION="${{ steps.version.outputs.version }}"
@@ -326,7 +312,18 @@ jobs:
             --pattern "cmd-ime-${VERSION}.zip" \
             --clobber
 
-          ls -la "cmd-ime-${VERSION}.dmg" "cmd-ime-${VERSION}.zip"
+          if [ "$LOCAL_ARTIFACTS" = "true" ]; then
+            [[ "$EXPECTED_ZIP_SHA256" =~ ^[a-f0-9]{64}$ ]]
+            printf '%s  %s\n' "$EXPECTED_ZIP_SHA256" "cmd-ime-${VERSION}.zip" | shasum -a 256 -c -
+          fi
+
+          # Recovery must enforce the same distribution requirements as a build.
+          recovered_bundle=$(mktemp -d "${RUNNER_TEMP}/cmd-ime-recovery.XXXXXX")
+          trap 'rm -rf "$recovered_bundle"' EXIT
+          ditto -x -k "cmd-ime-${VERSION}.zip" "$recovered_bundle"
+          bash .github/scripts/verify-distribution.sh "$recovered_bundle/CmdIME.app"
+          xcrun stapler validate "$recovered_bundle/CmdIME.app"
+          xcrun stapler validate "cmd-ime-${VERSION}.dmg"
 
       - name: Calculate SHA256
         if: steps.phase.outputs.needs_appcast == 'true'
@@ -334,7 +331,7 @@ jobs:
         run: |
           VERSION=${{steps.version.outputs.version}}
           SHA256=$(shasum -a 256 "cmd-ime-${VERSION}.dmg" | awk '{print $1}')
-          echo "sha256=$SHA256" >> $GITHUB_OUTPUT
+          echo "sha256=$SHA256" >> "$GITHUB_OUTPUT"
           echo "🔐 SHA256: $SHA256"
 
       # In the full-run path the Sparkle CLI tools are already resolved as a
@@ -400,10 +397,24 @@ jobs:
           fi
 
           ZIP_SIZE=$(wc -c < "$ZIP_PATH" | tr -d '[:space:]')
-          echo "edSignature=$SIG" >> $GITHUB_OUTPUT
-          echo "zipSize=$ZIP_SIZE" >> $GITHUB_OUTPUT
+          echo "edSignature=$SIG" >> "$GITHUB_OUTPUT"
+          echo "zipSize=$ZIP_SIZE" >> "$GITHUB_OUTPUT"
           echo "🔐 EdDSA signature: $SIG"
           echo "📦 ZIP size: ${ZIP_SIZE} bytes"
+
+      - name: Verify Sparkle signature against the app public key
+        if: steps.phase.outputs.needs_appcast == 'true'
+        env:
+          UPDATE_SIGNATURE: ${{ steps.sparkle.outputs.edSignature }}
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          VERIFY_DIR=$(mktemp -d "${RUNNER_TEMP}/sparkle-verify.XXXXXX")
+          trap 'rm -rf "$VERIFY_DIR"' EXIT
+          ditto -x -k "cmd-ime-${VERSION}.zip" "$VERIFY_DIR"
+          swift .github/scripts/verify-update.swift \
+            "$VERIFY_DIR/CmdIME.app/Contents/Info.plist" \
+            "cmd-ime-${VERSION}.zip" "$UPDATE_SIGNATURE"
 
       - name: Update appcast.xml
         if: steps.phase.outputs.needs_appcast == 'true'
@@ -480,36 +491,27 @@ jobs:
 
           echo "✅ Release v${VERSION} created successfully!"
 
-      # Publish the accumulated appcast to a dedicated, unprotected `appcast`
-      # branch. SUFeedURL points at this branch's raw URL, so the feed no longer
-      # depends on the `latest` release staying in place, and every release's
-      # <item> is retained for version history and Sparkle delta generation.
-      # Runs after the release exists because the <enclosure> URL references the
-      # release download. The branch is a single force-pushed commit — its git
-      # history is irrelevant; the version history lives inside appcast.xml.
+      # Preserve feed history and reject a concurrent update with a normal push.
       - name: Publish appcast.xml to appcast branch
         if: steps.phase.outputs.needs_appcast == 'true'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           VERSION=${{ steps.version.outputs.version }}
-
           WORKDIR=$(mktemp -d)
-          cp appcast.xml "$WORKDIR/appcast.xml"
-          cd "$WORKDIR"
-
-          git init -q
-          git checkout -q -b appcast
-          git add appcast.xml
-          git -c user.name="github-actions[bot]" \
-              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
-              commit -q -m "chore: publish appcast.xml for v${VERSION}"
-          git push -f \
-            "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
-            appcast
-
-          echo "✅ appcast.xml published to the appcast branch"
+          git fetch origin appcast
+          git worktree add --detach "$WORKDIR/feed" FETCH_HEAD
+          trap 'git worktree remove "$WORKDIR/feed"' EXIT
+          # Abort if another publisher changed the feed since generation.
+          git show FETCH_HEAD:appcast.xml | cmp - "${RUNNER_TEMP}/appcast_current.xml"
+          cp appcast.xml "$WORKDIR/feed/appcast.xml"
+          git -C "$WORKDIR/feed" add appcast.xml
+          git -C "$WORKDIR/feed" -c user.name="github-actions[bot]" \
+            -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -m "chore: publish appcast.xml for v${VERSION}"
+          git -C "$WORKDIR/feed" push origin HEAD:refs/heads/appcast
+          # SUFeedURL uses the appcast branch. Published release assets are immutable.
 
       # Mint a 1-hour GitHub App installation token instead of using a
       # static PAT. The homebrew-publisher App is installed on
@@ -517,9 +519,9 @@ jobs:
       # pattern as airis-workspace's release.yml. This eliminates the
       # per-repo HOMEBREW_TAP_TOKEN PAT (which expires and breaks silently).
       - name: Generate Homebrew tap App token
-        if: steps.phase.outputs.needs_appcast == 'true'
+        if: steps.phase.outputs.needs_appcast == 'true' && inputs.local_artifacts != true
         id: app-token
-        uses: actions/create-github-app-token@v3
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
         with:
           client-id: ${{ vars.HOMEBREW_TAP_PUBLISHER_CLIENT_ID }}
           private-key: ${{ secrets.HOMEBREW_TAP_PUBLISHER_PRIVATE_KEY }}
@@ -536,7 +538,7 @@ jobs:
       # recognizes as a verified author. Pulling `app-slug` from the token
       # outputs means renaming the App needs no workflow edits.
       - name: Resolve App bot identity
-        if: steps.phase.outputs.needs_appcast == 'true'
+        if: steps.phase.outputs.needs_appcast == 'true' && inputs.local_artifacts != true
         id: bot
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
@@ -549,7 +551,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Update Homebrew cask via PR
-        if: steps.phase.outputs.needs_appcast == 'true'
+        if: steps.phase.outputs.needs_appcast == 'true' && inputs.local_artifacts != true
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
@@ -597,23 +599,21 @@ jobs:
 
             app "CmdIME.app"
 
-            postflight do
-              system_command "/usr/bin/xattr",
-                             args: ["-cr", "#{appdir}/CmdIME.app"],
-                             sudo: false
+            postflight_steps do
+              run "/usr/bin/xattr",
+                  args: ["-cr", "{{appdir}}/CmdIME.app"],
+                  sudo: false
               # Refresh LaunchServices so the new bundle's icon and display
               # name are picked up immediately (otherwise Finder / System
               # Settings can show a stale entry).
-              lsregister = "/System/Library/Frameworks/CoreServices.framework/" \\
-                           "Frameworks/LaunchServices.framework/Support/lsregister"
-              system_command lsregister,
-                             args: ["-f", "#{appdir}/CmdIME.app"],
-                             sudo: false
+              run "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister",
+                  args: ["-f", "{{appdir}}/CmdIME.app"],
+                  sudo: false
               # Auto-launch the new build so the user doesn't have to fish
               # for it after every upgrade.
-              system_command "/usr/bin/open",
-                             args: ["#{appdir}/CmdIME.app"],
-                             sudo: false
+              run "/usr/bin/open",
+                  args: ["{{appdir}}/CmdIME.app"],
+                  sudo: false
             end
 
             # Gracefully quit the running menu bar agent before brew replaces
@@ -644,15 +644,14 @@ jobs:
           git commit -m "Update cmd-ime to v${VERSION}"
           git push --set-upstream origin "$BRANCH"
 
-          # Open and immediately squash-merge. The App is a bypass actor on
-          # the `Homebrew tap protection` ruleset (bypass_mode: pull_request)
-          # so the merge succeeds even with required reviews.
+          # Use the merge method required by the organization ruleset and
+          # wait for the tap's required checks through GitHub auto-merge.
           PR_URL=$(gh pr create \
             --base "$(gh repo view --json defaultBranchRef --jq .defaultBranchRef.name)" \
             --head "$BRANCH" \
             --title "chore(cask): update cmd-ime to v${VERSION}" \
-            --body "Automated cask update from \`agiletec-inc/cmd-ime@v${VERSION}\`. The publisher App bypasses required-review enforcement; this PR merges immediately.")
+            --body "Automated cask update from \`agiletec-inc/cmd-ime@v${VERSION}\`. Auto-merge waits for the tap's required checks.")
 
-          gh pr merge --squash --delete-branch "$PR_URL"
+          gh pr merge --merge --auto --delete-branch "$PR_URL"
 
-          echo "✅ Homebrew cask updated to v${VERSION}"
+          echo "✅ Homebrew cask PR submitted for v${VERSION}: $PR_URL"
