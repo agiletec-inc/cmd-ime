@@ -5,7 +5,7 @@ import ServiceManagement
 /// toggleLaunchAtStartup.swift). Tests must never touch the real OS-level
 /// login item registry: a prior bug had a test call the real API, which
 /// registered the `xctest` test-runner binary itself as a login item on the
-/// developer's Mac (see CLAUDE.md and AppSettingsTests.swift for the
+/// developer's Mac (see AGENTS.md and AppSettingsTests.swift for the
 /// incident this class exists to prevent).
 final class FakeLoginItemService: LoginItemService {
     var status: SMAppService.Status

@@ -73,7 +73,7 @@ For distribution builds, set `CMDIME_SIGNING_IDENTITY` (Developer ID Application
 
 ## Development
 
-See [CLAUDE.md](CLAUDE.md) for detailed development documentation.
+See [AGENTS.md](AGENTS.md) for detailed development documentation.
 
 ## Testing
 

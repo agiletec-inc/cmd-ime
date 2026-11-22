@@ -39,7 +39,7 @@ final class InputSourceCatalogTests: XCTestCase {
     }
 
     func testSelectableKeyboardSources_ExcludesPaletteSources() {
-        // Known contamination risk (see CLAUDE.md): Character Viewer / emoji
+        // Known contamination risk (see AGENTS.md): Character Viewer / emoji
         // palettes share the "enabled sources" list but must not appear as
         // switchable input-source actions.
         let sources = InputSourceCatalog.selectableKeyboardSources()
