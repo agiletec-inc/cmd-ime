@@ -47,7 +47,7 @@ final class LocalizationCatalogTests: XCTestCase {
     func testCompiledTablesHaveNoKeysBeyondTheSourceCatalog() throws {
         // Catches stale keys left in a compiled table after a key was renamed
         // or removed from the source catalog but the compiled output wasn't
-        // regenerated (see README/CLAUDE.md for the regeneration command).
+        // regenerated (see README/AGENTS.md for the regeneration command).
         let sourceKeys = try loadSourceCatalogKeys()
 
         for locale in Self.supportedLocales {
@@ -61,7 +61,7 @@ final class LocalizationCatalogTests: XCTestCase {
     func testCompiledTablesMatchAFreshCompileOfTheSourceCatalog() throws {
         // Detects drift: someone edited Localizable.xcstrings without
         // re-running xcstringstool compile to refresh the committed
-        // Resources/<locale>.lproj output (see CLAUDE.md for the command).
+        // Resources/<locale>.lproj output (see AGENTS.md for the command).
         guard let xcstringsToolPath = findXcstringsTool() else {
             throw XCTSkip("xcstringstool not available in this environment")
         }
