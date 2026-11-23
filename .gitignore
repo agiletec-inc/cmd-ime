@@ -45,3 +45,6 @@ node_modules/
 
 # Claude Code harness artifacts
 .claude/scheduled_tasks.lock
+
+# CmdIME Mac App Store XcodeGen output (source of truth is project.yml)
+/apps/cmd-ime-store/CmdIMEStore.xcodeproj/

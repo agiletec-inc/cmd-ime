@@ -1,0 +1,61 @@
+name: CmdIMEStore
+options:
+  bundleIdPrefix: com.kazuki
+  deploymentTarget:
+    macOS: "13.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+packages:
+  CmdIMEStorePackage:
+    path: .
+targets:
+  CmdIMEStore:
+    type: application
+    platform: macOS
+    sources:
+      - path: Sources/CmdIMEStoreApp
+      - path: Assets.xcassets
+        buildPhase: resources
+      - path: PrivacyInfo.xcprivacy
+        buildPhase: resources
+    dependencies:
+      - package: CmdIMEStorePackage
+        product: CmdIMEStoreCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.kazuki.cmdime
+        PRODUCT_NAME: CmdIME
+        EXECUTABLE_NAME: CmdIME
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: "⌘IME"
+        INFOPLIST_KEY_CFBundleName: "⌘IME"
+        INFOPLIST_KEY_LSUIElement: YES
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
+        INFOPLIST_KEY_NSPrincipalClass: NSApplication
+        INFOPLIST_KEY_CFBundleShortVersionString: $(CMDIME_MARKETING_VERSION)
+        INFOPLIST_KEY_CFBundleVersion: $(CMDIME_BUILD_NUMBER)
+        MARKETING_VERSION: $(CMDIME_MARKETING_VERSION)
+        CURRENT_PROJECT_VERSION: $(CMDIME_BUILD_NUMBER)
+        SWIFT_VERSION: "5.10"
+        MACOSX_DEPLOYMENT_TARGET: "13.0"
+        ARCHS: arm64
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_ENTITLEMENTS: CmdIMEStore.entitlements
+        ENABLE_APP_SANDBOX: YES
+        ENABLE_HARDENED_RUNTIME: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+      configs:
+        Debug:
+          CODE_SIGNING_ALLOWED: NO
+        Release:
+          CODE_SIGNING_ALLOWED: YES
+          DEVELOPMENT_TEAM: XTUTN7X562
+schemes:
+  CmdIMEStore:
+    build:
+      targets:
+        CmdIMEStore: all
+    run:
+      config: Debug
+    archive:
+      config: Release
