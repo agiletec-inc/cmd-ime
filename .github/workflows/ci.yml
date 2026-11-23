@@ -2,7 +2,7 @@ name: CI
 
 # Public repositories cannot call a private reusable workflow. Keep this local
 # copy aligned with the central baseline while preserving the required checks.
-# Package.swift lives in apps/cmd-ime-swift; release smoke is the repo's package.sh.
+# Direct-distribution and Mac App Store variants have separate Swift packages and CI paths.
 on:
   pull_request:
   merge_group:
@@ -93,3 +93,22 @@ jobs:
         run: swift test
       - name: Release build smoke
         run: CMDIME_BUILD_MODE=local bash scripts/package.sh
+
+  store-ci:
+    name: store-ci
+    runs-on: macos-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install XcodeGen
+        run: command -v xcodegen >/dev/null || brew install xcodegen
+      - name: Swift version
+        run: swift --version
+      - name: Store core tests
+        run: swift test --package-path apps/cmd-ime-store
+      - name: Unsigned App Store app build
+        run: make -C apps/cmd-ime-store build
+      - name: Verify unsigned app bundle and resources
+        run: make -C apps/cmd-ime-store verify-build

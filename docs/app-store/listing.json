@@ -1,0 +1,52 @@
+{
+  "bundleId": "com.kazuki.cmdime",
+  "platform": "MAC_OS",
+  "primaryLocale": "ja",
+  "primaryCategory": "UTILITIES",
+  "sku": "cmd-ime-mac",
+  "pricing": {
+    "model": "paid-upfront",
+    "baseTerritory": "JPN",
+    "basePriceJPY": 300
+  },
+  "marketingUrl": "https://agiletec.net/cmd-ime",
+  "supportUrl": "https://agiletec.net/contact",
+  "privacyPolicyUrl": "https://github.com/agiletec-inc/cmd-ime/blob/main/docs/app-store/privacy.md",
+  "privacy": {
+    "dataCollected": false,
+    "tracking": false
+  },
+  "localizations": {
+    "ja": {
+      "name": "⌘IME",
+      "subtitle": "左右のCommandキーで入力ソースを切り替え",
+      "description": "URLを書くときは左⌘、日本語の本文に戻るときは右⌘。⌘IMEは、Macの左右のCommandキーに入力ソースを割り当てるメニューバーアプリです。\n\nMacに追加した入力ソースから、左手と右手で使いたい組み合わせを選べます。US配列でも、スペースバーの両脇がそれぞれの入力先の定位置に。コピーやペーストには、いつもの⌘C・⌘Vを使えます。\n\n初回は入力監視の許可が必要です。アカウント登録は不要です。",
+      "keywords": "キーボード,入力切替,英数,かな,日本語入力,韓国語,US配列,メニューバー"
+    },
+    "en-US": {
+      "name": "⌘IME",
+      "subtitle": "Switch inputs with Command",
+      "description": "Give each thumb its own input source. ⌘IME is a Mac menu bar app that lets you assign an input source to each Command key.\n\nChoose from the input sources on your Mac. Tap one Command key when you need to type a URL, then tap the other to return to your message. You can keep your US keyboard layout and your usual copy and paste shortcuts.\n\nInput Monitoring permission is required to recognize Command taps. No account is needed.",
+      "keywords": "keyboard,input source,Japanese,kana,ABC,Korean,pinyin,typing,language,menu bar"
+    }
+  },
+  "copyright": "2026 Agile Technology, K.K.",
+  "reviewInformation": {
+    "signInRequired": false,
+    "notes": "This is a menu bar utility. Open its settings and choose one enabled keyboard input source for each Command key. Start listening and grant Input Monitoring when prompted. If your Mac has only one input source, first enable a second source in System Settings > Keyboard > Text Input. In TextEdit, tap and release each Command key separately and type a short sample. Then press Command-C or Command-V; the input source should not change. The app uses a listen-only modifier event tap. It needs no account, network connection, or test credentials."
+  },
+  "exportCompliance": {
+    "usesNonExemptEncryption": false
+  },
+  "ageRating": {
+    "advertising": false,
+    "unrestrictedWebAccess": false,
+    "userGeneratedContent": false,
+    "messagingAndChat": false,
+    "gambling": false,
+    "simulatedGambling": false,
+    "violence": false,
+    "sexualContent": false,
+    "medicalInformation": false
+  }
+}
