@@ -35,8 +35,8 @@ if [[ -n "$expected_team" ]]; then
   /usr/bin/codesign --verify --deep --strict "$app"
   entitlements=$(mktemp)
   trap 'rm -f "$entitlements"' EXIT
-  /usr/bin/codesign -d --entitlements "$entitlements" "$app" >/dev/null 2>&1
-  /usr/bin/plutil -extract 'com.apple.security.app-sandbox' raw "$entitlements" | grep -qx true
+  /usr/bin/codesign -d --xml --entitlements "$entitlements" "$app" >/dev/null 2>&1
+  /usr/libexec/PlistBuddy -c 'Print :com.apple.security.app-sandbox' "$entitlements" | grep -qx true
 fi
 if /usr/bin/find "$app/Contents" -iname '*sparkle*' -print -quit | grep -q .; then
   echo 'Sparkle content found in the Mac App Store app.' >&2

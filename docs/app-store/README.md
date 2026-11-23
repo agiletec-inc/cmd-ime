@@ -6,7 +6,7 @@
 
 1. App Store Connect で対象チームの `com.kazuki.cmdime` を照合します。初回のみ macOS のアプリレコードを作成し、既存ビルドの番号を確認します。契約・税金・口座の状態は同じチームの「ビジネス」で確認します。
 2. `apps/cmd-ime-store` で `make test` を実行します。バージョンはリポジトリ直下の `manifest.toml` から読み取ります。
-3. そのバージョンに使える新しいビルド番号を指定して `make archive-app-store BUILD_NUMBER=番号` を実行します。配布署名を利用できる環境で `make export-app-store BUILD_NUMBER=番号` を実行し、配布パッケージとアプリの署名を検証します。
+3. そのバージョンに使える新しいビルド番号を指定して `ALLOW_APPLE_PROVISIONING=1 make archive-app-store BUILD_NUMBER=番号` を実行します。配布署名を利用できる環境で `make export-app-store BUILD_NUMBER=番号` を実行し、配布パッケージとアプリの署名を検証します。
 4. 配布ビルドをAppleにアップロードし、App Store Connectで処理が終わった実ビルドのバージョンと番号を照合します。
 
 ## 掲載と審査

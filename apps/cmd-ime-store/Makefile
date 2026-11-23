@@ -49,6 +49,7 @@ clean:
 	rm -rf .build $(PROJECT)
 
 verify-export:
+	@test -d .build/AppStoreExport || { echo 'App Store export directory not found.' >&2; exit 1; }
 	@set -euo pipefail; \
 	pkg=$$(find .build/AppStoreExport -maxdepth 1 -type f -name '*.pkg' -print -quit); \
 	test -n "$$pkg" || { echo 'No exported installer .pkg found.' >&2; exit 1; }; \

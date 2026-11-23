@@ -26,7 +26,7 @@ make build
 Use a unique positive App Store build number for each archive. `CMDIME_EXPECTED_TEAM_ID` defaults to the public repository value `XTUTN7X562`; the Makefile refuses a different team. The archive target uses automatic signing and `-allowProvisioningUpdates`, which lets Xcode create or update signing assets in the associated Apple Developer account. Run it only in the authorized Apple signing environment:
 
 ```sh
-make archive-app-store BUILD_NUMBER=123
+ALLOW_APPLE_PROVISIONING=1 make archive-app-store BUILD_NUMBER=123
 make export-app-store BUILD_NUMBER=123
 make verify-export BUILD_NUMBER=123
 ```
