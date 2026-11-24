@@ -1,8 +1,7 @@
 name: Release to Homebrew
 
 on:
-  pull_request:
-    types: [closed]
+  push:
     branches: [main]
   workflow_dispatch:
     inputs:
@@ -22,9 +21,8 @@ concurrency:
 
 jobs:
   release:
-    # Publish after a merge; closing an unmerged PR must not release.
-    # Manual dispatch remains available for recovery of interrupted releases.
-    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
+    # Publish the integrated main revision, including for manual recovery.
+    if: github.ref == 'refs/heads/main'
     runs-on: macos-latest
     timeout-minutes: 45
     permissions:

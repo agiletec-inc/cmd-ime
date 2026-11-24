@@ -6,6 +6,7 @@ name: CI
 on:
   pull_request:
   merge_group:
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -92,7 +93,21 @@ jobs:
       - name: Test
         run: swift test
       - name: Release build smoke
-        run: CMDIME_BUILD_MODE=local bash scripts/package.sh
+        env:
+          CMDIME_BUILD_MODE: local
+          CMDIME_SIGNING_IDENTITY: "-"
+        run: |
+          bash scripts/package.sh
+          app=.build/release/CmdIME.app
+          codesign --verify --deep --strict "$app"
+          ditto -c -k --keepParent "$app" "$RUNNER_TEMP/CmdIME-ci.zip"
+      - name: Save test build
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: CmdIME-ci
+          path: ${{ runner.temp }}/CmdIME-ci.zip
+          if-no-files-found: error
+          retention-days: 7
 
   store-ci:
     name: store-ci
