@@ -13,12 +13,9 @@ build/test/release commandはpackage manifest、Makefile、workflowから読む�
   bundle置換監視を維持する。
 - release appcastは専用`appcast` branchが配信正本。mainの`appcast.xml`は空seedであり履歴を追記しない。
 - native appなのでDockerを使わない。release signing/notarizationとlocal ad-hoc buildを混同しない。
-- ユーザー向け文字列は必ず`L(_:)`(Sources/CmdIMESwift/Localization.swift)経由。`swift build`/`swift test`は
-  `Localizable.xcstrings`をコンパイルしない(Xcode専用機能)ため、`Sources/CmdIMESwift/Resources/<locale>.lproj/
-  Localizable.strings`を`xcstringstool compile`で事前コンパイルして正本と一緒にcommitする。文字列を追加・変更したら
-  `xcrun xcstringstool compile Sources/CmdIMESwift/Resources/Localizable.xcstrings --output-directory
-  Sources/CmdIMESwift/Resources --serialization-format text`で再生成し、`LocalizationCatalogTests`のdriftチェックを
-  green にしてからcommitする。`scripts/package.sh`はSPMの`<Package>_<Target>.bundle`を`Contents/Resources/`へ
-  手動でdittoする一文が要る — 標準の`swift build -c release`だけでは.appにリソースが同梱されない。
+- ユーザー向け文字列は必ず`L(_:)`(`apps/cmd-ime-swift/Sources/CmdIMESwift/Localization.swift`)経由。`swift build`/`swift test`は
+  `Localizable.xcstrings`をコンパイルしないため、文字列を追加・変更したら`apps/cmd-ime-swift/Sources/CmdIMESwift/Resources`で
+  `xcrun xcstringstool compile Localizable.xcstrings --output-directory . --serialization-format text`を実行し、
+  生成した`<locale>.lproj/Localizable.strings`を正本と一緒にcommitする。`LocalizationCatalogTests`のdriftチェックで確認する。
 
 変更後はSwift test、build、必要ならevent tap/Accessibilityの実機確認を行う。コメントは周囲の密度と言語へ合わせる。
