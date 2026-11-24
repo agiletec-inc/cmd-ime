@@ -3,6 +3,14 @@ import Combine
 import Sparkle
 import UserNotifications
 
+extension Bundle {
+    var cmdIMEVersionDescription: String {
+        let version = object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.0.0"
+        guard let build = object(forInfoDictionaryKey: "CFBundleVersion") as? String else { return version }
+        return "\(version) (\(build))"
+    }
+}
+
 class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate,
                    SPUStandardUserDriverDelegate, UNUserNotificationCenterDelegate {
     static weak var shared: AppDelegate?
@@ -38,7 +46,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate,
         statusItem.isVisible = settings.showMenuBarIcon
         statusItem.menu = menu
 
-        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
+        let version = Bundle.main.cmdIMEVersionDescription
 
         menu.addItem(
             withTitle: String(format: L("menu.preferencesTitle"), version),

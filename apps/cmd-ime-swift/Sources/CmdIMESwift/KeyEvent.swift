@@ -29,9 +29,8 @@ class KeyEvent: NSObject {
     // hold the last character key when they tap ⌘ to commit.
     var pendingModifierTaps: Set<CGKeyCode> = []
 
-    // Test seam: modifierKeyUp posts the synthesized tap through this.
-    // Overridden in unit tests to capture the tap instead of emitting a
-    // system-wide event.
+    // Tests intercept synthesized events before they reach the system.
+    var postMediaEvent: (CGEvent) -> Void = { $0.post(tap: .cgSessionEventTap) }
     var postModifierTap: (KeyboardShortcut) -> Void = { $0.postEvent() }
 
     // Test seam: modifierKeyUp selects a TIS input source through this when
@@ -74,7 +73,7 @@ class KeyEvent: NSObject {
                                                             name: NSWorkspace.didActivateApplicationNotification,
                                                             object: nil)
 
-        let checkOptionPrompt = kAXTrustedCheckOptionPrompt.takeRetainedValue() as NSString
+        let checkOptionPrompt = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as NSString
         let options: CFDictionary = [checkOptionPrompt: true] as NSDictionary
 
         if !AXIsProcessTrustedWithOptions(options) {
@@ -220,12 +219,12 @@ class KeyEvent: NSObject {
             place: .headInsertEventTap,
             options: .defaultTap,
             eventsOfInterest: CGEventMask(eventMask),
-            callback: { (proxy, type, event, refcon) -> Unmanaged<CGEvent>? in
+            callback: { (_, type, event, refcon) -> Unmanaged<CGEvent>? in
                 if let observer = refcon {
                     let mySelf = Unmanaged<KeyEvent>.fromOpaque(observer).takeUnretainedValue()
-                    return mySelf.eventCallback(proxy: proxy, type: type, event: event)
+                    return mySelf.eventCallback(type: type, event: event)
                 }
-                return Unmanaged.passRetained(event)
+                return Unmanaged.passUnretained(event)
             },
             userInfo: observer
         ) else {
@@ -293,7 +292,13 @@ class KeyEvent: NSObject {
         }
     }
 
-    func eventCallback(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
+    func eventCallback(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
+        guard let result = handleEvent(type: type, event: event) else { return nil }
+        // Quartz owns the incoming event. It consumes one retain only for a replacement.
+        return result === event ? .passUnretained(event) : .passRetained(result)
+    }
+
+    private func handleEvent(type: CGEventType, event: CGEvent) -> CGEvent? {
         // The system delivers the tap-disabled types to this callback when it
         // disables the tap (timeout under load, or display reconfiguration on
         // monitor connect/disconnect — #107). Re-enable immediately instead of
@@ -303,11 +308,11 @@ class KeyEvent: NSObject {
             if let tap = eventTap {
                 CGEvent.tapEnable(tap: tap, enable: true)
             }
-            return Unmanaged.passRetained(event)
+            return event
         }
 
         if isExclusionApp || isRecordingShortcut {
-            return Unmanaged.passRetained(event)
+            return event
         }
 
         if let mediaKeyEvent = MediaKeyEvent(event) {
@@ -319,7 +324,7 @@ class KeyEvent: NSObject {
             let keyCode = CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode))
 
             guard let mask = modifierMasks[keyCode] else {
-                return Unmanaged.passRetained(event)
+                return event
             }
             return event.flags.rawValue & mask.rawValue != 0 ?
                 modifierKeyDown(event) : modifierKeyUp(event)
@@ -333,47 +338,39 @@ class KeyEvent: NSObject {
         default:
             pendingModifierTaps.removeAll()
 
-            return Unmanaged.passRetained(event)
+            return event
         }
     }
 
-    func keyDown(_ event: CGEvent) -> Unmanaged<CGEvent>? {
-        #if DEBUG
-            print(KeyboardShortcut(event).toString())
-        #endif
-
+    func keyDown(_ event: CGEvent) -> CGEvent? {
         pendingModifierTaps.removeAll()
 
         switch convertedEvent(for: event) {
-        case .passThrough:       return Unmanaged.passRetained(event)
+        case .passThrough:       return event
         case .disable:           return nil
-        case .remap(let mapped): return Unmanaged.passRetained(mapped)
+        case .remap(let mapped): return mapped
         }
     }
 
-    func keyUp(_ event: CGEvent) -> Unmanaged<CGEvent>? {
+    func keyUp(_ event: CGEvent) -> CGEvent? {
         // Deliberately does NOT cancel pending modifier taps: only a key going
         // DOWN during the hold means the modifier was used as a shortcut. The
         // up-stroke of a character typed just before the ⌘ press must not
         // cancel the tap, or committing a conversion with ⌘ misfires whenever
         // the last character key is still physically held.
         switch convertedEvent(for: event) {
-        case .passThrough:       return Unmanaged.passRetained(event)
+        case .passThrough:       return event
         case .disable:           return nil
-        case .remap(let mapped): return Unmanaged.passRetained(mapped)
+        case .remap(let mapped): return mapped
         }
     }
 
-    func modifierKeyDown(_ event: CGEvent) -> Unmanaged<CGEvent>? {
-        #if DEBUG
-            print(KeyboardShortcut(event).toString())
-        #endif
-
+    func modifierKeyDown(_ event: CGEvent) -> CGEvent? {
         pendingModifierTaps.insert(CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode)))
-        return Unmanaged.passRetained(event)
+        return event
     }
 
-    func modifierKeyUp(_ event: CGEvent) -> Unmanaged<CGEvent>? {
+    func modifierKeyUp(_ event: CGEvent) -> CGEvent? {
         let code = CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode))
 
         if pendingModifierTaps.remove(code) != nil, let mapping = findMapping(for: event) {
@@ -387,33 +384,29 @@ class KeyEvent: NSObject {
             }
         }
 
-        return Unmanaged.passRetained(event)
+        return event
     }
 
-    func mediaKeyDown(_ mediaKeyEvent: MediaKeyEvent) -> Unmanaged<CGEvent>? {
+    func mediaKeyDown(_ mediaKeyEvent: MediaKeyEvent) -> CGEvent? {
         pendingModifierTaps.removeAll()
 
         let mediaKeyCodeValue = CGKeyCode(1000 + mediaKeyEvent.keyCode)
         switch convertedEvent(for: mediaKeyEvent.event, keyCode: mediaKeyCodeValue) {
         case .passThrough:
-            return Unmanaged.passRetained(mediaKeyEvent.event)
+            return mediaKeyEvent.event
         case .disable:
             return nil
         case .remap(let mapped):
-            #if DEBUG
-            print(KeyboardShortcut(mapped).toString())
-            print(mapped.type == CGEventType.keyDown)
-            #endif
-            mapped.post(tap: .cgSessionEventTap)
+            postMediaEvent(mapped)
             return nil
         }
     }
 
-    func mediaKeyUp(_ mediaKeyEvent: MediaKeyEvent) -> Unmanaged<CGEvent>? {
+    func mediaKeyUp(_ mediaKeyEvent: MediaKeyEvent) -> CGEvent? {
         let mediaKeyCodeValue = CGKeyCode(1000 + mediaKeyEvent.keyCode)
         switch convertedEvent(for: mediaKeyEvent.event, keyCode: mediaKeyCodeValue) {
         case .passThrough:
-            return Unmanaged.passRetained(mediaKeyEvent.event)
+            return mediaKeyEvent.event
         case .disable:
             return nil
         case .remap(let mapped):
@@ -430,7 +423,7 @@ class KeyEvent: NSObject {
                 return nil
             }
             keyUpEvent.flags = mapped.flags
-            keyUpEvent.post(tap: .cgSessionEventTap)
+            postMediaEvent(keyUpEvent)
             return nil
         }
     }
@@ -438,17 +431,9 @@ class KeyEvent: NSObject {
     // MARK: - Key mapping
 
     private func findMapping(for event: CGEvent, keyCode: CGKeyCode? = nil) -> KeyMapping? {
-        let shortcut: KeyboardShortcut
-        if event.type.rawValue == UInt32(NX_SYSDEFINED) {
-            guard let mediaKey = MediaKeyEvent(event) else { return nil }
-            shortcut = KeyboardShortcut(keyCode: 0, flags: mediaKey.flags)
-        } else {
-            shortcut = KeyboardShortcut(event)
-        }
-
-        let lookupKey = keyCode ?? shortcut.keyCode
+        let lookupKey = keyCode ?? CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode))
         guard let mappingList = shortcutList[lookupKey] else { return nil }
-
+        let shortcut = keyCode == nil ? KeyboardShortcut(event) : KeyboardShortcut(keyCode: 0, flags: event.flags)
         for mapping in mappingList where mapping.enable && shortcut.isCover(mapping.input) {
             return mapping
         }

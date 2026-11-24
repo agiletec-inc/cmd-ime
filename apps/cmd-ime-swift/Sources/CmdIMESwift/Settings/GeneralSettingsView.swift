@@ -9,7 +9,7 @@ struct GeneralSettingsView: View {
     @EnvironmentObject private var settings: AppSettings
 
     private var version: String {
-        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0.0"
+        Bundle.main.cmdIMEVersionDescription
     }
 
     var body: some View {

@@ -10,6 +10,7 @@ final class KeyEventTests: XCTestCase {
     override func setUp() {
         super.setUp()
         keyEvent = KeyEvent()
+        keyEvent.postMediaEvent = { _ in }
         // Capture synthesized modifier taps instead of posting system-wide events.
         postedTaps = []
         keyEvent.postModifierTap = { [weak self] in self?.postedTaps.append($0) }
@@ -28,6 +29,34 @@ final class KeyEventTests: XCTestCase {
         super.tearDown()
     }
 
+    func testTapReturnsBorrowedOriginalWithoutExtendingItsLifetime() {
+        for _ in 0..<1_000 {
+            weak var observed: CGEvent?
+            autoreleasepool {
+                let event = CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: true)!
+                observed = event
+                let result = keyEvent.eventCallback(type: .keyDown, event: event)
+                XCTAssertTrue(result?.takeUnretainedValue() === event)
+            }
+            guard observed == nil else { return XCTFail("Tap retained the incoming event") }
+        }
+    }
+
+    func testTapTransfersOneOwnedReplacementToQuartz() {
+        keyMappingList = [KeyMapping(input: KeyboardShortcut(keyCode: 0), output: KeyboardShortcut(keyCode: 53))]
+        keyMappingListToShortcutList()
+        let event = CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: true)!
+        weak var observed: CGEvent?
+        autoreleasepool {
+            let result = keyEvent.eventCallback(type: .keyDown, event: event)?.takeRetainedValue()
+            XCTAssertNotNil(result)
+            XCTAssertFalse(result === event)
+            XCTAssertEqual(result?.getIntegerValueField(.keyboardEventKeycode), 53)
+            observed = result
+        }
+        XCTAssertNil(observed)
+    }
+
     func testKeyDown_PassesThrough_WhenNoMapping() {
         // Setup: No mappings
         let event = CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: true)!
@@ -35,7 +64,7 @@ final class KeyEventTests: XCTestCase {
         let result = keyEvent.keyDown(event)
 
         XCTAssertNotNil(result)
-        XCTAssertEqual(result?.takeRetainedValue().getIntegerValueField(.keyboardEventKeycode), 0)
+        XCTAssertEqual(result?.getIntegerValueField(.keyboardEventKeycode), 0)
     }
 
     func testKeyDown_RemapsEvent_WhenMappingExists() {
@@ -52,7 +81,7 @@ final class KeyEventTests: XCTestCase {
         let result = keyEvent.keyDown(event)
 
         XCTAssertNotNil(result)
-        XCTAssertEqual(result?.takeRetainedValue().getIntegerValueField(.keyboardEventKeycode), 53)
+        XCTAssertEqual(result?.getIntegerValueField(.keyboardEventKeycode), 53)
     }
 
     // MARK: - Eisu/Kana output passes the remapped key through so the IME
@@ -71,7 +100,7 @@ final class KeyEventTests: XCTestCase {
         let result = keyEvent.keyDown(event)
 
         XCTAssertNotNil(result)
-        XCTAssertEqual(result?.takeRetainedValue().getIntegerValueField(.keyboardEventKeycode), 104)
+        XCTAssertEqual(result?.getIntegerValueField(.keyboardEventKeycode), 104)
     }
 
     func testKeyDown_PassesEisuKeyThrough() {
@@ -86,7 +115,7 @@ final class KeyEventTests: XCTestCase {
         let result = keyEvent.keyDown(event)
 
         XCTAssertNotNil(result)
-        XCTAssertEqual(result?.takeRetainedValue().getIntegerValueField(.keyboardEventKeycode), 102)
+        XCTAssertEqual(result?.getIntegerValueField(.keyboardEventKeycode), 102)
     }
 
     func testKeyUp_PassesKanaKeyThrough() {
@@ -101,7 +130,7 @@ final class KeyEventTests: XCTestCase {
         let result = keyEvent.keyUp(event)
 
         XCTAssertNotNil(result)
-        XCTAssertEqual(result?.takeRetainedValue().getIntegerValueField(.keyboardEventKeycode), 104)
+        XCTAssertEqual(result?.getIntegerValueField(.keyboardEventKeycode), 104)
     }
 
     func testKeyDown_SwallowsEvent_WhenMappedToDisable() {
@@ -132,7 +161,7 @@ final class KeyEventTests: XCTestCase {
         let result = keyEvent.keyDown(event)
 
         XCTAssertNotNil(result)
-        XCTAssertEqual(result?.takeRetainedValue().getIntegerValueField(.keyboardEventKeycode), 0)
+        XCTAssertEqual(result?.getIntegerValueField(.keyboardEventKeycode), 0)
     }
 
     // MARK: - Tap recovery (#107: external monitor connect/disconnect)
@@ -372,7 +401,12 @@ final class KeyEventTests: XCTestCase {
 
         // Before the fix, mediaKeyUp always passed the raw event through
         // regardless of the mapping, so this would return non-nil.
+        var posted: [CGEvent] = []
+        keyEvent.postMediaEvent = { posted.append($0) }
         let result = keyEvent.mediaKeyUp(mediaKeyEvent)
+        XCTAssertEqual(posted.count, 1)
+        XCTAssertEqual(posted.first?.type, .keyUp)
+        XCTAssertEqual(posted.first?.getIntegerValueField(.keyboardEventKeycode), 53)
 
         XCTAssertNil(result, "a remapped media key-up must be swallowed after posting the synthesized keyUp")
     }
