@@ -20,7 +20,10 @@ let package = Package(
                 .product(name: "Sparkle", package: "Sparkle")
             ],
             path: "Sources/CmdIMESwift",
-            resources: [.process("Resources")]
+            resources: [.copy("Resources/Localizable.xcstrings")] +
+                ["en", "ja", "ko", "vi", "zh-Hans", "zh-Hant"].map {
+                    .process("Resources/\($0).lproj/Localizable.strings")
+                }
         ),
         .testTarget(
             name: "CmdIMESwiftTests",

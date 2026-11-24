@@ -4,7 +4,6 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 BUILD_DIR="$PROJECT_ROOT/.build"
-TRIPLE="arm64-apple-macosx"
 BIN_NAME="CmdIMESwift"
 APP_NAME="CmdIME"
 APP_DIR="$BUILD_DIR/release/${APP_NAME}.app"
@@ -117,20 +116,33 @@ sign_bundle_with_runtime() {
     # hardened runtime only for Apple-issued certs (which carry a Team ID and are what
     # we'd notarize); self-signed and local builds sign without it.
     if [[ "$BUILD_MODE" == "local" ]]; then
-        codesign --force --sign "$SIGN_IDENTITY" "$@" "$path"
+        codesign --force --sign "$SIGN_SELECTOR" "$@" "$path"
     elif [[ "$SIGN_IDENTITY" == "Developer ID Application: "* || "$SIGN_IDENTITY" == "Apple Development: "* ]]; then
-        codesign --force --timestamp --options runtime --sign "$SIGN_IDENTITY" "$@" "$path"
+        codesign --force --timestamp --options runtime --sign "$SIGN_SELECTOR" "$@" "$path"
     else
-        codesign --force --sign "$SIGN_IDENTITY" "$@" "$path"
+        codesign --force --sign "$SIGN_SELECTOR" "$@" "$path"
     fi
 }
 
 VERSION="$(resolve_version)"
-# CFBundleVersion must match the appcast's <sparkle:version> (release.yml derives the same
-# MAJOR*10000+MINOR*100+PATCH build number). A git hash here never compares equal to the
-# numeric appcast value, so Sparkle re-offers the installed version on every launch.
-BUILD_NUMBER=$(echo "$VERSION" | awk -F. '{printf "%d%02d%02d", $1, $2, $3}')
-SIGN_IDENTITY="$(resolve_signing_identity)"
+# Keep release ordering compatible with earlier Sparkle builds. The remaining
+# components distinguish separate packages of the same release, even in one second.
+BUILD_NUMBER=$(python3 - "$VERSION" <<'PYBUILD'
+import sys
+import time
+
+major, minor, patch = map(int, sys.argv[1].split("."))
+seconds, nanos = divmod(time.time_ns(), 1_000_000_000)
+print(f"{major}{minor:02d}{patch:02d}.{seconds}.{nanos}")
+PYBUILD
+)
+SIGN_SELECTOR="$(resolve_signing_identity)"
+SIGN_IDENTITY="$SIGN_SELECTOR"
+# codesign accepts a certificate fingerprint to distinguish identically named renewals.
+if [[ "$SIGN_SELECTOR" =~ ^[[:xdigit:]]{40}$ ]]; then
+    SIGN_IDENTITY=$(security find-identity -v -p codesigning |
+        awk -F'"' -v hash="$SIGN_SELECTOR" 'index(toupper($1), toupper(hash)) {print $2; exit}')
+fi
 SPARKLE_PUBLIC_ED_KEY="$(resolve_sparkle_public_key)"
 
 require_distribution_prerequisites
@@ -141,7 +153,8 @@ export CLANG_MODULE_CACHE_PATH="$CLANG_MODULE_CACHE_DIR"
 export SWIFTPM_CUSTOM_CACHE_PATH="$SWIFTPM_CACHE_DIR"
 swift build -c release --package-path "$PROJECT_ROOT"
 
-BIN_PATH="$BUILD_DIR/$TRIPLE/release/$BIN_NAME"
+PRODUCTS_DIR="$(swift build -c release --package-path "$PROJECT_ROOT" --show-bin-path)"
+BIN_PATH="$PRODUCTS_DIR/$BIN_NAME"
 if [[ ! -f "$BIN_PATH" ]]; then
     echo "Binary not found at $BIN_PATH" >&2
     exit 1
@@ -157,21 +170,15 @@ if ! otool -l "$MACOS_DIR/$APP_NAME" | grep -Fq "@executable_path/../Frameworks"
     install_name_tool -add_rpath "@executable_path/../Frameworks" "$MACOS_DIR/$APP_NAME"
 fi
 
-SPARKLE_FRAMEWORK="$BUILD_DIR/$TRIPLE/release/Sparkle.framework"
+SPARKLE_FRAMEWORK="$PRODUCTS_DIR/Sparkle.framework"
 if [[ -d "$SPARKLE_FRAMEWORK" ]]; then
     echo ">> Copying Sparkle.framework"
     ditto "$SPARKLE_FRAMEWORK" "$FRAMEWORKS_DIR/Sparkle.framework"
 fi
 
-# SPM emits a separate <package>_<target>.bundle for `resources:` (Localizable.xcstrings
-# and its compiled .lproj tables) — swift build never merges it into Contents/Resources on
-# its own, so `Bundle.module` lookups (see Localization.swift) would silently fall back to
-# raw keys in a real .app if this bundle isn't carried over here.
-SWIFT_RESOURCE_BUNDLE="$BUILD_DIR/$TRIPLE/release/${BIN_NAME}_${BIN_NAME}.bundle"
-if [[ -d "$SWIFT_RESOURCE_BUNDLE" ]]; then
-    echo ">> Copying ${BIN_NAME}_${BIN_NAME}.bundle"
-    ditto "$SWIFT_RESOURCE_BUNDLE" "$RESOURCES_DIR/${BIN_NAME}_${BIN_NAME}.bundle"
-fi
+# The packaged localization resolver reads this required bundle from Contents/Resources.
+SWIFT_RESOURCE_BUNDLE="$PRODUCTS_DIR/${BIN_NAME}_${BIN_NAME}.bundle"
+ditto "$SWIFT_RESOURCE_BUNDLE" "$RESOURCES_DIR/${BIN_NAME}_${BIN_NAME}.bundle"
 
 if [[ -f "$ICON_SOURCE" ]]; then
     ditto "$ICON_SOURCE" "$RESOURCES_DIR/AppIcon.icns"

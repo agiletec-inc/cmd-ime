@@ -394,6 +394,7 @@ jobs:
           echo "📦 ZIP size: ${ZIP_SIZE} bytes"
 
       - name: Verify Sparkle signature against the app public key
+        id: verified_bundle
         if: steps.phase.outputs.needs_appcast == 'true'
         env:
           UPDATE_SIGNATURE: ${{ steps.sparkle.outputs.edSignature }}
@@ -407,6 +408,12 @@ jobs:
             "$VERIFY_DIR/CmdIME.app/Contents/Info.plist" \
             "cmd-ime-${VERSION}.zip" "$UPDATE_SIGNATURE"
 
+          PLIST="$VERIFY_DIR/CmdIME.app/Contents/Info.plist"
+          [[ "$(plutil -extract CFBundleShortVersionString raw "$PLIST")" == "$VERSION" ]]
+          build=$(plutil -extract CFBundleVersion raw "$PLIST")
+          [[ "$build" =~ ^[0-9]+([.][0-9]+){0,2}$ ]]
+          echo "build=$build" >> "$GITHUB_OUTPUT"
+
       - name: Update appcast.xml
         if: steps.phase.outputs.needs_appcast == 'true'
         run: |
@@ -414,7 +421,7 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           SIG="${{ steps.sparkle.outputs.edSignature }}"
           ZIP_SIZE="${{ steps.sparkle.outputs.zipSize }}"
-          BUILD_NUMBER=$(echo "$VERSION" | awk -F. '{printf "%d%02d%02d", $1, $2, $3}')
+          BUILD_NUMBER="${{ steps.verified_bundle.outputs.build }}"
           PUB_DATE=$(date -u "+%a, %d %b %Y %H:%M:%S +0000")
 
           # Base the appcast off the accumulated copy on the `appcast` branch so
