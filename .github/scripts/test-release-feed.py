@@ -1,7 +1,7 @@
 import os, subprocess, tempfile, textwrap
 from pathlib import Path
 source=(Path(__file__).resolve().parents[1] / 'workflows/release.yml').read_text()
-step=source.split('      - name: Publish appcast.xml to appcast branch',1)[1].split('      # Mint a 1-hour',1)[0]
+step=source.split('      - name: Publish appcast.xml to appcast branch',1)[1].split('\n  sync-tap:',1)[0]
 script=textwrap.dedent(step.split('        run: |\n',1)[1]).replace('${{ steps.version.outputs.version }}','2.5.1')
 for race in (False,True):
  with tempfile.TemporaryDirectory() as tmp:
