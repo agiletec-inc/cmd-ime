@@ -1,0 +1,103 @@
+name: Sync published CmdIME to Homebrew
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+  workflow_call:
+    secrets:
+      HOMEBREW_TAP_PUBLISHER_PRIVATE_KEY:
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cmd-ime-homebrew-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: github.event_name != 'release' || !github.event.release.prerelease
+    runs-on: macos-latest
+    timeout-minutes: 15
+    env:
+      CASK: agiletec-inc/tap/cmd-ime
+      TAP_REPO: agiletec-inc/homebrew-tap
+    steps:
+      - name: Compare the published DMG with the tap
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          release=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest")
+          tag=$(jq -er '.tag_name' <<< "$release")
+          [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          version=${tag#v}
+          digest=$(jq -er --arg asset "cmd-ime-$version.dmg" '
+            .assets[] | select(.name == $asset and .state == "uploaded") | .digest
+          ' <<< "$release")
+          [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+
+          brew tap agiletec-inc/tap
+          brew trust --cask "$CASK"
+          cask=$(brew info --json=v2 --cask "$CASK" | jq -e '.casks[0]')
+          current=$(jq -er '.version' <<< "$cask")
+          if [[ "$current" == "$version" ]]; then
+            [[ "$(jq -er '.sha256' <<< "$cask")" == "${digest#sha256:}" ]] || {
+              echo "::error::Published DMG checksum changed for $tag"
+              exit 1
+            }
+            echo "Tap already matches $tag"
+            exit 0
+          fi
+          ruby -rrubygems -e 'abort "Refusing to downgrade the tap" unless Gem::Version.new(ARGV[0]) > Gem::Version.new(ARGV[1])' "$version" "$current"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "sha256=${digest#sha256:}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate Homebrew tap App token
+        if: steps.release.outputs.version != ''
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        with:
+          client-id: ${{ vars.HOMEBREW_TAP_PUBLISHER_CLIENT_ID }}
+          private-key: ${{ secrets.HOMEBREW_TAP_PUBLISHER_PRIVATE_KEY }}
+          owner: agiletec-inc
+          repositories: homebrew-tap
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Submit the Homebrew version bump
+        if: steps.release.outputs.version != ''
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          HOMEBREW_GITHUB_API_TOKEN: ${{ steps.app-token.outputs.token }}
+          VERSION: ${{ steps.release.outputs.version }}
+          SHA256: ${{ steps.release.outputs.sha256 }}
+          BOT: ${{ steps.app-token.outputs.app-slug }}[bot]
+        run: |
+          set -euo pipefail
+          tap=$(brew --repository agiletec-inc/tap)
+          branch="release/cmd-ime-v$VERSION"
+          brew bump-cask-pr --write-only --version="$VERSION" --sha256="$SHA256" "$CASK"
+          cd "$tap"
+          gh auth setup-git
+          git switch -c "$branch"
+          git add Casks/cmd-ime.rb
+          if git fetch origin "refs/heads/$branch"; then
+            # Only resume a branch containing precisely the proposed bump.
+            git diff --exit-code --cached FETCH_HEAD
+            head=$(git rev-parse FETCH_HEAD)
+          else
+            user_id=$(gh api "users/$BOT" --jq .id)
+            git -c user.name="$BOT" -c user.email="$user_id+$BOT@users.noreply.github.com" commit -m "cmd-ime $VERSION"
+            git push origin "$branch"
+            head=$(git rev-parse HEAD)
+          fi
+          pr=$(gh pr list -R "$TAP_REPO" --head "$branch" --base main --json url,isCrossRepository --jq '.[] | select(.isCrossRepository == false) | .url')
+          if [[ -z "$pr" ]]; then
+            pr=$(gh pr create -R "$TAP_REPO" --base main --head "$branch" \
+              --title "cmd-ime $VERSION" --body "Update to the published CmdIME v$VERSION DMG.")
+          fi
+          gh pr merge -R "$TAP_REPO" --match-head-commit "$head" --auto --merge "$pr"

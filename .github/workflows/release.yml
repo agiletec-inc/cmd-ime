@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       local_artifacts:
-        description: Finalize an existing locally signed and notarized release; tap PR is handled locally
+        description: Finalize an existing locally signed and notarized release
         type: boolean
         default: false
       zip_sha256:
@@ -108,7 +108,7 @@ jobs:
       # Single source of truth for which step groups run. Three states:
       #   needs_build=true,  needs_appcast=true  — full run (tag missing)
       #   needs_build=false, needs_appcast=true  — recovery (tag exists, appcast entry missing)
-      #   needs_build=false, needs_appcast=false — already fully published, skip everything
+      #   needs_build=false, needs_appcast=false — build and feed complete; still reconcile the tap
       - name: Decide release phase
         id: phase
         run: |
@@ -325,15 +325,6 @@ jobs:
           xcrun stapler validate "$recovered_bundle/CmdIME.app"
           xcrun stapler validate "cmd-ime-${VERSION}.dmg"
 
-      - name: Calculate SHA256
-        if: steps.phase.outputs.needs_appcast == 'true'
-        id: sha256
-        run: |
-          VERSION=${{steps.version.outputs.version}}
-          SHA256=$(shasum -a 256 "cmd-ime-${VERSION}.dmg" | awk '{print $1}')
-          echo "sha256=$SHA256" >> "$GITHUB_OUTPUT"
-          echo "🔐 SHA256: $SHA256"
-
       # In the full-run path the Sparkle CLI tools are already resolved as a
       # side effect of "Build macOS app" (package.sh's `swift build`). In the
       # recovery path that step was skipped, so sign_update would otherwise be
@@ -513,142 +504,10 @@ jobs:
           git -C "$WORKDIR/feed" push origin HEAD:refs/heads/appcast
           # SUFeedURL uses the appcast branch. Published release assets are immutable.
 
-      # Mint a 1-hour GitHub App installation token instead of using a
-      # static PAT. The homebrew-publisher App is installed on
-      # `homebrew-tap` only and shared via org-level credentials; same
-      # pattern as airis-workspace's release.yml. This eliminates the
-      # per-repo HOMEBREW_TAP_TOKEN PAT (which expires and breaks silently).
-      - name: Generate Homebrew tap App token
-        if: steps.phase.outputs.needs_appcast == 'true' && inputs.local_artifacts != true
-        id: app-token
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
-        with:
-          client-id: ${{ vars.HOMEBREW_TAP_PUBLISHER_CLIENT_ID }}
-          private-key: ${{ secrets.HOMEBREW_TAP_PUBLISHER_PRIVATE_KEY }}
-          owner: agiletec-inc
-          repositories: homebrew-tap
-          # Least-privilege scope: only what's needed to push the cask
-          # branch and open the PR. Survives any future App permission
-          # expansion without auto-inheriting the larger set.
-          permission-contents: write
-          permission-pull-requests: write
-
-      # Resolve the bot's numeric user-id so the committer email uses the
-      # canonical `<id>+<slug>[bot]@users.noreply.github.com` form GitHub
-      # recognizes as a verified author. Pulling `app-slug` from the token
-      # outputs means renaming the App needs no workflow edits.
-      - name: Resolve App bot identity
-        if: steps.phase.outputs.needs_appcast == 'true' && inputs.local_artifacts != true
-        id: bot
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-        run: |
-          SLUG="${{ steps.app-token.outputs.app-slug }}"
-          USER_ID=$(gh api "/users/${SLUG}[bot]" --jq .id)
-          {
-            echo "name=${SLUG}[bot]"
-            echo "email=${USER_ID}+${SLUG}[bot]@users.noreply.github.com"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Update Homebrew cask via PR
-        if: steps.phase.outputs.needs_appcast == 'true' && inputs.local_artifacts != true
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-        run: |
-          set -euo pipefail
-
-          VERSION=${{steps.version.outputs.version}}
-          SHA256=${{steps.sha256.outputs.sha256}}
-
-          echo "📦 Updating Homebrew cask..."
-          echo "   Version: $VERSION"
-          echo "   SHA256: $SHA256"
-
-          # Clone homebrew-tap with the App's installation token (shallow —
-          # only a fresh branch with a single commit is pushed back)
-          git clone --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/agiletec-inc/homebrew-tap.git"
-          cd homebrew-tap
-
-          BRANCH="release/cmd-ime-v${VERSION}"
-
-          # Rerun safety: drop any stale ref from a previous failed attempt
-          gh api -X DELETE "repos/agiletec-inc/homebrew-tap/git/refs/heads/${BRANCH}" 2>/dev/null || true
-
-          git checkout -b "$BRANCH"
-
-          mkdir -p Casks
-
-          cat > Casks/cmd-ime.rb <<EOF
-          cask "cmd-ime" do
-            version "${VERSION}"
-            sha256 "${SHA256}"
-
-            # The app updates itself via Sparkle; tell brew so it does not
-            # treat a Sparkle-updated bundle as outdated and reinstall over it.
-            auto_updates true
-
-            url "https://github.com/agiletec-inc/cmd-ime/releases/download/v#{version}/cmd-ime-#{version}.dmg"
-            name "⌘IME"
-            desc "Command IME - Switch between alphanumeric and kana using Command keys"
-            homepage "https://github.com/agiletec-inc/cmd-ime"
-
-            livecheck do
-              url :url
-              strategy :github_latest
-            end
-
-            app "CmdIME.app"
-
-            postflight_steps do
-              # Refresh LaunchServices so the new bundle's icon and display
-              # name are picked up immediately (otherwise Finder / System
-              # Settings can show a stale entry).
-              run "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister",
-                  args: ["-f", "{{appdir}}/CmdIME.app"],
-                  sudo: false
-              # Auto-launch the new build so the user doesn't have to fish
-              # for it after every upgrade.
-              run "/usr/bin/open",
-                  args: ["{{appdir}}/CmdIME.app"],
-                  sudo: false
-            end
-
-            # Gracefully quit the running menu bar agent before brew replaces
-            # the .app, then SIGTERM/SIGKILL as fallback. AppleScript "quit"
-            # alone is unreliable for an LSUIElement app under load, so the
-            # signal stanza catches the process even if AE delivery fails.
-            uninstall quit:   "com.kazuki.cmdime",
-                      signal: [
-                        ["TERM", "com.kazuki.cmdime"],
-                        ["KILL", "com.kazuki.cmdime"],
-                      ]
-
-            zap trash: [
-              "~/Library/Application Support/cmd-ime",
-              "~/Library/Preferences/com.kazuki.cmdime.plist",
-            ]
-          end
-          EOF
-
-          git config user.name  "${{ steps.bot.outputs.name }}"
-          git config user.email "${{ steps.bot.outputs.email }}"
-
-          git add Casks/cmd-ime.rb
-          if git diff --cached --quiet; then
-            echo "No changes to cask — skipping PR."
-            exit 0
-          fi
-          git commit -m "Update cmd-ime to v${VERSION}"
-          git push --set-upstream origin "$BRANCH"
-
-          # Use the merge method required by the organization ruleset and
-          # wait for the tap's required checks through GitHub auto-merge.
-          PR_URL=$(gh pr create \
-            --base "$(gh repo view --json defaultBranchRef --jq .defaultBranchRef.name)" \
-            --head "$BRANCH" \
-            --title "chore(cask): update cmd-ime to v${VERSION}" \
-            --body "Automated cask update from \`agiletec-inc/cmd-ime@v${VERSION}\`. Auto-merge waits for the tap's required checks.")
-
-          gh pr merge --merge --auto --delete-branch "$PR_URL"
-
-          echo "✅ Homebrew cask PR submitted for v${VERSION}: $PR_URL"
+  sync-tap:
+    needs: release
+    permissions:
+      contents: read
+    uses: ./.github/workflows/sync-homebrew.yml
+    secrets:
+      HOMEBREW_TAP_PUBLISHER_PRIVATE_KEY: ${{ secrets.HOMEBREW_TAP_PUBLISHER_PRIVATE_KEY }}
